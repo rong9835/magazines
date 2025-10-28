@@ -29,7 +29,7 @@
 .article {
   background: white;
   border-radius: 16px;
-  overflow: visible;
+  overflow: hidden;
 }
 
 /* Hero Image Section */
@@ -44,7 +44,6 @@
   height: 100%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   position: relative;
-  border-radius: 16px 16px 0 0;
 }
 
 .gradient {
@@ -73,8 +72,7 @@
 /* Article Content */
 .articleContent {
   padding: 40px;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.15), 0 0 15px rgba(0, 0, 0, 0.1);
-  border-radius: 0 0 16px 16px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .date {

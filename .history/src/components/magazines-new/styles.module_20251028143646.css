@@ -45,8 +45,7 @@
   background: #ffffff;
   border-radius: 12px;
   padding: 40px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .formGroup {
@@ -96,10 +95,6 @@
 .uploadContent {
   text-align: center;
   padding: 40px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
 }
 
 .uploadText {
@@ -157,7 +152,7 @@
   border-color: #9ca3af;
 }
 
-.select option[value=''] {
+.select option[value=""] {
   color: #9ca3af;
 }
 

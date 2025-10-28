@@ -61,12 +61,12 @@
 .card {
   width: 100%;
   max-width: 552px;
-  height: 828.5px;
+  height: 828px;
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  padding: 32px;
+  padding: 40px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -77,13 +77,8 @@
   border: 1px solid #f3f4f6;
   padding: 32px;
   text-align: center;
-  margin: -32px -32px 0 -32px;
+  margin: -40px -40px 0 -40px;
   border-radius: 16px 16px 0 0;
-  height: 111.5px;
-  width: 472px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .planTitle {
@@ -104,15 +99,11 @@
 
 .priceSection {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   gap: 4px;
-  padding: 60px 0 78px 0;
+  padding: 40px 0;
   border-bottom: 1px solid #f3f4f6;
-  height: 105px;
-  width: 408px;
-  margin: 0 auto;
-  align-self: center;
 }
 
 .priceAmount {
@@ -133,15 +124,11 @@
 
 .featureList {
   list-style: none;
-  padding: 76px 0;
+  padding: 40px 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 40px;
-  flex: 1;
-  justify-content: space-between;
-  width: 408px;
-  margin: 0 auto;
+  gap: 24px;
 }
 
 .featureItem {
@@ -161,9 +148,8 @@
 }
 
 .subscribeButton {
-  width: 408px;
-  height: 58px;
-  padding: 0;
+  width: 100%;
+  padding: 20px;
   background: #374151;
   border: 1px solid #374151;
   border-radius: 10px;
@@ -173,10 +159,6 @@
   line-height: 24px;
   cursor: pointer;
   transition: all 0.2s;
-  margin: 0 auto 56px auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .subscribeButton:hover {
@@ -216,12 +198,7 @@
     line-height: 24px;
   }
 
-  .priceSection {
-    padding: 40px 0;
-  }
-
   .featureList {
-    padding: 40px 0;
-    gap: 24px;
+    gap: 20px;
   }
 }

@@ -104,7 +104,7 @@
 
 .priceSection {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   gap: 4px;
   padding: 60px 0 78px 0;
@@ -112,7 +112,6 @@
   height: 105px;
   width: 408px;
   margin: 0 auto;
-  align-self: center;
 }
 
 .priceAmount {
@@ -133,11 +132,11 @@
 
 .featureList {
   list-style: none;
-  padding: 76px 0;
+  padding: 0 0 60px 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 32px;
   flex: 1;
   justify-content: space-between;
   width: 408px;
@@ -173,7 +172,8 @@
   line-height: 24px;
   cursor: pointer;
   transition: all 0.2s;
-  margin: 0 auto 56px auto;
+  margin-top: auto;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
