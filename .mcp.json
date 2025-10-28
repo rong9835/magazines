@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "/Users/chorong/.bun/bin/bunx",
+      "args": ["cursor-talk-to-figma-mcp@latest"],
+      "env": {
+        "PATH": "/Users/chorong/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    }
+  }
+}
