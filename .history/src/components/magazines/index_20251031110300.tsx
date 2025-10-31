@@ -1,7 +1,6 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { useMagazines } from '@/app/magazines/index.binding.hook';
 import styles from './styles.module.css';
 
@@ -115,13 +114,10 @@ export default function MagazinesComponent() {
           >
             <div className={styles.imageContainer}>
               {magazine.thumbnail_url ? (
-                <Image
+                <img
                   src={magazine.thumbnail_url}
                   alt={magazine.title}
-                  width={323}
-                  height={200}
                   className={styles.image}
-                  style={{ objectFit: 'contain' }}
                 />
               ) : (
                 <div className={styles.imagePlaceholder} />

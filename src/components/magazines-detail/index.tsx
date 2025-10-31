@@ -10,6 +10,7 @@ interface MagazineDetailProps {
     date: string;
     category: string;
     categoryColor: string;
+    imageUrl: string;
     summary: string;
     content: string[];
     tags: string[];
@@ -24,7 +25,7 @@ export default function MagazineDetailComponent({
   return (
     <div className={styles.container}>
       {/* Back Button */}
-      <button className={styles.backButton} onClick={() => router.back()}>
+      <button className={styles.backButton} onClick={() => router.push('/magazines')}>
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path
             d="M11.25 13.5L6.75 9L11.25 4.5"
@@ -41,7 +42,10 @@ export default function MagazineDetailComponent({
       <article className={styles.article}>
         {/* Hero Image with Overlay */}
         <div className={styles.heroContainer}>
-          <div className={styles.heroImage}>
+          <div
+            className={styles.heroImage}
+            style={{ backgroundImage: `url(${article.imageUrl})` }}
+          >
             <div className={styles.gradient} />
             <div
               className={styles.categoryBadge}
@@ -87,7 +91,7 @@ export default function MagazineDetailComponent({
         {/* Bottom Back Button */}
         <button
           className={styles.bottomBackButton}
-          onClick={() => router.back()}
+          onClick={() => router.push('/magazines')}
         >
           목록으로 돌아가기
         </button>

@@ -115,13 +115,12 @@ export default function MagazinesComponent() {
           >
             <div className={styles.imageContainer}>
               {magazine.thumbnail_url ? (
-                <Image
+                <img
                   src={magazine.thumbnail_url}
                   alt={magazine.title}
-                  width={323}
-                  height={200}
                   className={styles.image}
-                  style={{ objectFit: 'contain' }}
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div className={styles.imagePlaceholder} />

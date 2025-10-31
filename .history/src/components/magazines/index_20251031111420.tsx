@@ -122,6 +122,7 @@ export default function MagazinesComponent() {
                   height={200}
                   className={styles.image}
                   style={{ objectFit: 'contain' }}
+                  unoptimized={magazine.thumbnail_url.includes('supabase')}
                 />
               ) : (
                 <div className={styles.imagePlaceholder} />

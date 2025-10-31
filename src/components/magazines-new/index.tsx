@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './styles.module.css';
+import { submitMagazine } from '@/app/magazines/new/hooks/index.submit.hook';
 
 export default function MagazinesNew() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function MagazinesNew() {
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleBack = () => {
     router.push('/magazines');
@@ -83,17 +85,53 @@ export default function MagazinesNew() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 이미 제출 중이면 중복 요청 방지
+    if (isSubmitting) {
+      return;
+    }
+
+    // 필수 필드 검증
     if (!formData.category) {
       alert('카테고리를 선택해주세요.');
       return;
     }
 
-    console.log('Form submitted:', formData);
-    alert('아티클이 등록되었습니다.');
-    router.push('/magazines');
+    if (!formData.title.trim()) {
+      alert('제목을 입력해주세요.');
+      return;
+    }
+
+    // 제출 시작
+    setIsSubmitting(true);
+
+    try {
+      // Supabase에 데이터 등록
+      const result = await submitMagazine({
+        image: formData.image,
+        category: formData.category,
+        title: formData.title,
+        description: formData.description,
+        content: formData.content,
+        tags: formData.tags
+      });
+
+      if (result.success && result.id) {
+        // 등록 성공
+        alert('등록에 성공하였습니다.');
+        router.push(`/magazines/${result.id}`);
+      } else {
+        // 등록 실패
+        alert(result.error || '등록에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('등록 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -214,8 +252,8 @@ export default function MagazinesNew() {
           <p className={styles.hint}>공백으로 구분하여 입력해주세요 (예: #React #Node.js #WebDev)</p>
         </div>
 
-        <button type="submit" className={styles.submitButton}>
-          아티클 등록하기
+        <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
+          {isSubmitting ? '등록 중...' : '아티클 등록하기'}
         </button>
       </form>
     </div>

@@ -1,20 +1,19 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { useMagazines } from '@/app/magazines/index.binding.hook';
 import styles from './styles.module.css';
 
 // Category color mapping
 const categoryColors: Record<string, string> = {
-  인공지능: '#8b5cf6',
-  웹개발: '#22c55e',
-  클라우드: '#3b82f6',
-  보안: '#ef4444',
-  모바일: '#ec4899',
-  데이터사이언스: '#f59e0b',
-  블록체인: '#14b8a6',
-  DevOps: '#6366f1',
+  '인공지능': '#8b5cf6',
+  '웹개발': '#22c55e',
+  '클라우드': '#3b82f6',
+  '보안': '#ef4444',
+  '모바일': '#ec4899',
+  '데이터사이언스': '#f59e0b',
+  '블록체인': '#14b8a6',
+  'DevOps': '#6366f1',
 };
 
 export default function MagazinesComponent() {
@@ -115,13 +114,10 @@ export default function MagazinesComponent() {
           >
             <div className={styles.imageContainer}>
               {magazine.thumbnail_url ? (
-                <Image
+                <img
                   src={magazine.thumbnail_url}
                   alt={magazine.title}
-                  width={323}
-                  height={200}
                   className={styles.image}
-                  style={{ objectFit: 'contain' }}
                 />
               ) : (
                 <div className={styles.imagePlaceholder} />
@@ -129,8 +125,7 @@ export default function MagazinesComponent() {
               <div
                 className={styles.categoryBadge}
                 style={{
-                  backgroundColor:
-                    categoryColors[magazine.category] || '#6b7280',
+                  backgroundColor: categoryColors[magazine.category] || '#6b7280'
                 }}
               >
                 {magazine.category}
@@ -138,9 +133,7 @@ export default function MagazinesComponent() {
             </div>
             <div className={styles.content}>
               <h2 className={styles.articleTitle}>{magazine.title}</h2>
-              <p className={styles.articleDescription}>
-                {magazine.description}
-              </p>
+              <p className={styles.articleDescription}>{magazine.description}</p>
               {magazine.tags && magazine.tags.length > 0 && (
                 <div className={styles.tags}>
                   {magazine.tags.map((tag, index) => (
