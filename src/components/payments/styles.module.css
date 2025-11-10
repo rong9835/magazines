@@ -61,7 +61,7 @@
 .card {
   width: 100%;
   max-width: 552px;
-  height: 828.5px;
+  min-height: 828.5px;
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
@@ -186,6 +186,104 @@
 
 .subscribeButton:active {
   transform: scale(0.98);
+}
+
+.subscribeButton:disabled {
+  background: #9ca3af;
+  border-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.statusContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.errorMessage {
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  color: #b91c1c;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.checklistBox {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f9fafb;
+}
+
+.statusHeading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.statusList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statusItem {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.statusBadge[data-status='passed'] {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.statusBadge[data-status='failed'] {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.statusContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statusStep {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.statusDetail {
+  font-size: 13px;
+  font-weight: 400;
+  color: #4b5563;
+  line-height: 19px;
 }
 
 @media (max-width: 640px) {

@@ -1,17 +1,19 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useMagazinePayment } from '@/app/payments/hooks/index.payment.hook';
 import styles from './styles.module.css';
 
 export default function Payments() {
   const router = useRouter();
+  const { subscribe, isProcessing, errorMessage, checklist } = useMagazinePayment();
 
   const handleBack = () => {
     router.push('/magazines');
   };
 
   const handleSubscribe = () => {
-    alert('구독 기능은 준비 중입니다.');
+    void subscribe();
   };
 
   return (
@@ -99,9 +101,43 @@ export default function Payments() {
             </li>
           </ul>
 
-          <button className={styles.subscribeButton} onClick={handleSubscribe}>
-            구독하기
+          <button
+            className={styles.subscribeButton}
+            onClick={handleSubscribe}
+            disabled={isProcessing}
+            aria-busy={isProcessing}
+          >
+            {isProcessing ? '처리 중...' : '구독하기'}
           </button>
+
+          {(errorMessage || checklist.length > 0) && (
+            <div className={styles.statusContainer}>
+              {errorMessage && (
+                <p role="alert" className={styles.errorMessage}>
+                  {errorMessage}
+                </p>
+              )}
+
+              {checklist.length > 0 && (
+                <div className={styles.checklistBox}>
+                  <h3 className={styles.statusHeading}>처리 결과</h3>
+                  <ul className={styles.statusList}>
+                    {checklist.map((item) => (
+                      <li key={`${item.step}-${item.status}`} className={styles.statusItem}>
+                        <span className={styles.statusBadge} data-status={item.status}>
+                          {item.status === 'passed' ? '완료' : '실패'}
+                        </span>
+                        <div className={styles.statusContent}>
+                          <span className={styles.statusStep}>{item.step}</span>
+                          <span className={styles.statusDetail}>{item.detail}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
