@@ -369,7 +369,6 @@ export async function POST(
     }
 
     const secret = process.env.PORTONE_API_SECRET;
-
     if (!secret) {
       const detail = 'PORTONE_API_SECRET 환경변수가 설정되지 않았습니다.';
       checklist.push({

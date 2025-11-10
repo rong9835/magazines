@@ -94,32 +94,24 @@ function validateRequestBody(body: unknown): {
   };
 }
 
-async function fetchPortonePaymentDetail(
-  paymentId: string,
-  secret: string
-): Promise<{
+async function fetchPortonePaymentDetail(paymentId: string, secret: string): Promise<{
   detail?: PortonePaymentResponse;
   checklist: ChecklistItem[];
 }> {
   const checklist: ChecklistItem[] = [];
-  const response = await fetch(
-    `${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(paymentId)}`,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `PortOne ${secret}`,
-      },
-      cache: 'no-store',
-    }
-  );
+  const response = await fetch(`${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(paymentId)}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `PortOne ${secret}`,
+    },
+    cache: 'no-store',
+  });
 
   if (!response.ok) {
     const errorBody = await safeParseJson(response);
     const detail = `PortOne 결제 조회 실패 (${response.status}): ${
-      typeof errorBody === 'object' && errorBody !== null
-        ? JSON.stringify(errorBody)
-        : response.statusText
+      typeof errorBody === 'object' && errorBody !== null ? JSON.stringify(errorBody) : response.statusText
     }`;
     checklist.push({
       step: 'fetch-portone-payment',
@@ -129,9 +121,7 @@ async function fetchPortonePaymentDetail(
     throw new Error(detail);
   }
 
-  const detail = (await safeParseJson(
-    response
-  )) as PortonePaymentResponse | null;
+  const detail = (await safeParseJson(response)) as PortonePaymentResponse | null;
   if (!detail) {
     const message = 'PortOne 결제 조회 응답이 비어 있습니다.';
     checklist.push({
@@ -161,8 +151,7 @@ function createSupabaseAdminClient(): {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    const detail =
-      'Supabase 환경변수(NEXT_PUBLIC_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY)가 설정되지 않았습니다.';
+    const detail = 'Supabase 환경변수(NEXT_PUBLIC_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY)가 설정되지 않았습니다.';
     checklist.push({
       step: 'load-supabase-config',
       status: 'failed',
@@ -192,16 +181,7 @@ async function insertPaymentRecord(args: {
   nextScheduleAt: string;
   nextScheduleId: string;
 }): Promise<ChecklistItem[]> {
-  const {
-    supabase,
-    paymentId,
-    amount,
-    startAt,
-    endAt,
-    endGraceAt,
-    nextScheduleAt,
-    nextScheduleId,
-  } = args;
+  const { supabase, paymentId, amount, startAt, endAt, endGraceAt, nextScheduleAt, nextScheduleId } = args;
   const checklist: ChecklistItem[] = [];
 
   const { error } = await supabase.from('payment').insert({
@@ -243,39 +223,32 @@ async function scheduleNextSubscription(args: {
   const { secret, nextScheduleId, nextScheduleAt, paymentDetail } = args;
   const checklist: ChecklistItem[] = [];
 
-  const response = await fetch(
-    `${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(
-      nextScheduleId
-    )}/schedule`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `PortOne ${secret}`,
-      },
-      body: JSON.stringify({
-        payment: {
-          billingKey: paymentDetail.billingKey,
-          orderName: paymentDetail.orderName,
-          customer: {
-            id: paymentDetail.customer?.id,
-          },
-          amount: {
-            total: paymentDetail.amount?.total,
-          },
-          currency: 'KRW',
+  const response = await fetch(`${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(nextScheduleId)}/schedule`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `PortOne ${secret}`,
+    },
+    body: JSON.stringify({
+      payment: {
+        billingKey: paymentDetail.billingKey,
+        orderName: paymentDetail.orderName,
+        customer: {
+          id: paymentDetail.customer?.id,
         },
-        timeToPay: nextScheduleAt,
-      }),
-    }
-  );
+        amount: {
+          total: paymentDetail.amount?.total,
+        },
+        currency: 'KRW',
+      },
+      timeToPay: nextScheduleAt,
+    }),
+  });
 
   if (!response.ok) {
     const errorBody = await safeParseJson(response);
     const detail = `PortOne 구독 예약 실패 (${response.status}): ${
-      typeof errorBody === 'object' && errorBody !== null
-        ? JSON.stringify(errorBody)
-        : response.statusText
+      typeof errorBody === 'object' && errorBody !== null ? JSON.stringify(errorBody) : response.statusText
     }`;
     checklist.push({
       step: 'schedule-next-subscription',
@@ -327,9 +300,7 @@ function buildDateStrings(): {
   return { startAt, endAt, endGraceAt, nextScheduleAt };
 }
 
-export async function POST(
-  req: NextRequest
-): Promise<NextResponse<ApiResponse>> {
+export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse>> {
   const checklist: ChecklistItem[] = [];
 
   try {
@@ -348,7 +319,7 @@ export async function POST(
           error: validationError ?? '요청 본문 검증에 실패했습니다.',
           checklist,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -356,20 +327,18 @@ export async function POST(
       checklist.push({
         step: 'handle-cancelled-status',
         status: 'skipped',
-        detail:
-          'status 값이 Cancelled 이므로 구독 결제 완료 플로우를 건너뜁니다.',
+        detail: 'status 값이 Cancelled 이므로 구독 결제 완료 플로우를 건너뜁니다.',
       });
       return NextResponse.json(
         {
           success: true,
           checklist,
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
     const secret = process.env.PORTONE_API_SECRET;
-
     if (!secret) {
       const detail = 'PORTONE_API_SECRET 환경변수가 설정되지 않았습니다.';
       checklist.push({
@@ -383,7 +352,7 @@ export async function POST(
           error: detail,
           checklist,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -395,19 +364,14 @@ export async function POST(
 
     let paymentDetail: PortonePaymentResponse | undefined;
     try {
-      const { detail, checklist: fetchChecklist } =
-        await fetchPortonePaymentDetail(data.paymentId, secret);
+      const { detail, checklist: fetchChecklist } = await fetchPortonePaymentDetail(data.paymentId, secret);
       checklist.push(...fetchChecklist);
       paymentDetail = detail;
-      console.log('------paymentDetail------', paymentDetail);
     } catch (error) {
       checklist.push({
         step: 'handle-fetch-payment-error',
         status: 'failed',
-        detail:
-          error instanceof Error
-            ? error.message
-            : 'PortOne 결제 조회 중 오류가 발생했습니다.',
+        detail: error instanceof Error ? error.message : 'PortOne 결제 조회 중 오류가 발생했습니다.',
       });
       return NextResponse.json(
         {
@@ -415,7 +379,7 @@ export async function POST(
           error: 'PortOne 결제 정보를 조회하지 못했습니다.',
           checklist,
         },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -432,32 +396,26 @@ export async function POST(
           error: detail,
           checklist,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    const {
-      client: supabaseAdmin,
-      checklist: supabaseChecklist,
-      error: supabaseError,
-    } = createSupabaseAdminClient();
+    const { client: supabaseAdmin, checklist: supabaseChecklist, error: supabaseError } = createSupabaseAdminClient();
     checklist.push(...supabaseChecklist);
     if (!supabaseAdmin || supabaseError) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            supabaseError ?? 'Supabase 클라이언트를 초기화하지 못했습니다.',
+          error: supabaseError ?? 'Supabase 클라이언트를 초기화하지 못했습니다.',
           checklist,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const amount = paymentDetail.amount?.total;
     if (typeof amount !== 'number' || Number.isNaN(amount) || amount <= 0) {
-      const detail =
-        'PortOne 결제 정보에서 유효한 결제 금액을 확인할 수 없습니다.';
+      const detail = 'PortOne 결제 정보에서 유효한 결제 금액을 확인할 수 없습니다.';
       checklist.push({
         step: 'validate-payment-amount',
         status: 'failed',
@@ -469,7 +427,7 @@ export async function POST(
           error: detail,
           checklist,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -479,8 +437,7 @@ export async function POST(
       !paymentDetail.customer?.id ||
       paymentDetail.customer.id.trim() === ''
     ) {
-      const detail =
-        'PortOne 결제 정보에서 구독 예약에 필요한 필드를 확인할 수 없습니다.';
+      const detail = 'PortOne 결제 정보에서 구독 예약에 필요한 필드를 확인할 수 없습니다.';
       checklist.push({
         step: 'validate-payment-detail',
         status: 'failed',
@@ -492,7 +449,7 @@ export async function POST(
           error: detail,
           checklist,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -515,10 +472,7 @@ export async function POST(
       checklist.push({
         step: 'handle-supabase-error',
         status: 'failed',
-        detail:
-          error instanceof Error
-            ? error.message
-            : 'Supabase 처리 중 오류가 발생했습니다.',
+        detail: error instanceof Error ? error.message : 'Supabase 처리 중 오류가 발생했습니다.',
       });
       return NextResponse.json(
         {
@@ -526,7 +480,7 @@ export async function POST(
           error: '결제 정보를 저장하지 못했습니다.',
           checklist,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -542,10 +496,7 @@ export async function POST(
       checklist.push({
         step: 'handle-schedule-error',
         status: 'failed',
-        detail:
-          error instanceof Error
-            ? error.message
-            : '구독 결제 예약 처리 중 오류가 발생했습니다.',
+        detail: error instanceof Error ? error.message : '구독 결제 예약 처리 중 오류가 발생했습니다.',
       });
       return NextResponse.json(
         {
@@ -553,7 +504,7 @@ export async function POST(
           error: '다음 구독 결제를 예약하지 못했습니다.',
           checklist,
         },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -568,16 +519,13 @@ export async function POST(
         success: true,
         checklist,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     checklist.push({
       step: 'handle-unexpected-error',
       status: 'failed',
-      detail:
-        error instanceof Error
-          ? error.message
-          : '예상치 못한 오류가 발생했습니다.',
+      detail: error instanceof Error ? error.message : '예상치 못한 오류가 발생했습니다.',
     });
 
     return NextResponse.json(
@@ -586,7 +534,9 @@ export async function POST(
         error: '서버 내부 오류가 발생했습니다.',
         checklist,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
+
+
