@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 // Force Node.js runtime (not Edge)
 export const runtime = 'nodejs';
@@ -34,6 +35,8 @@ type ApiResponse =
 const PORTONE_API_BASE_URL = 'https://api.portone.io';
 const PORTONE_BILLING_KEY_PATH = (paymentId: string) =>
   `${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(paymentId)}/billing-key`;
+const PORTONE_SCHEDULE_PATH = (scheduleId: string) =>
+  `${PORTONE_API_BASE_URL}/schedules/${encodeURIComponent(scheduleId)}`;
 
 function validateRequestBody(body: unknown): {
   data?: PaymentRequestBody;
@@ -170,6 +173,64 @@ async function safeParseJson(response: Response): Promise<unknown> {
   }
 }
 
+async function createSchedule(args: {
+  scheduleId: string;
+  billingKey: string;
+  payload: PaymentRequestBody;
+  secret: string;
+  startDate: Date;
+}): Promise<{ checklist: ChecklistItem[] }> {
+  const { scheduleId, billingKey, payload, secret, startDate } = args;
+  const checklist: ChecklistItem[] = [];
+
+  const response = await fetch(PORTONE_SCHEDULE_PATH(scheduleId), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `PortOne ${secret}`,
+    },
+    body: JSON.stringify({
+      billingKey,
+      payment: {
+        orderName: payload.orderName,
+        amount: {
+          total: payload.amount,
+        },
+        currency: 'KRW',
+        customer: {
+          id: payload.customer.id,
+        },
+      },
+      timeToPay: startDate.toISOString(),
+      interval: {
+        type: 'MONTHLY',
+        count: 1,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await safeParseJson(response);
+    const detail = `PortOne 스케줄 생성 실패 (${response.status}): ${
+      typeof errorBody === 'object' && errorBody !== null ? JSON.stringify(errorBody) : response.statusText
+    }`;
+    checklist.push({
+      step: 'create-schedule',
+      status: 'failed',
+      detail,
+    });
+    throw new Error(detail);
+  }
+
+  checklist.push({
+    step: 'create-schedule',
+    status: 'passed',
+    detail: '정기 결제 스케줄 생성 완료',
+  });
+
+  return { checklist };
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse>> {
   const checklist: ChecklistItem[] = [];
 
@@ -242,10 +303,72 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse>>
       );
     }
 
+    // 정기 결제 스케줄 생성 (다음 달부터 자동 결제)
+    const now = new Date();
+    const oneMonthLater = new Date(now);
+    oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+
+    const scheduleId = crypto.randomUUID();
+
+    try {
+      const { checklist: scheduleChecklist } = await createSchedule({
+        scheduleId,
+        billingKey: data.billingKey,
+        payload: data,
+        secret,
+        startDate: oneMonthLater,
+      });
+      checklist.push(...scheduleChecklist);
+    } catch (error) {
+      console.error('❌ 스케줄 생성 실패:', error);
+      // 스케줄 생성 실패는 경고만 하고 계속 진행 (첫 결제는 성공했으므로)
+      checklist.push({
+        step: 'create-schedule',
+        status: 'failed',
+        detail: error instanceof Error ? error.message : '스케줄 생성 실패',
+      });
+    }
+
+    // Supabase에 결제 정보 저장
+    const paymentData = {
+      transaction_key: paymentId,
+      amount: data.amount,
+      status: 'Paid',
+      start_at: now.toISOString(),
+      end_at: oneMonthLater.toISOString(),
+      end_grace_at: oneMonthLater.toISOString(),
+      next_schedule_at: oneMonthLater.toISOString(),
+      next_schedule_id: scheduleId,
+    };
+
+    console.log('💾 Supabase 저장 시도:', paymentData);
+
+    const { error: insertError } = await supabase.from('payment').insert(paymentData);
+
+    if (insertError) {
+      console.error('❌ Supabase 저장 실패:', insertError);
+      const detail = `Supabase 저장 실패: ${insertError.message}`;
+      checklist.push({
+        step: 'save-to-database',
+        status: 'failed',
+        detail,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: detail,
+          checklist,
+        },
+        { status: 500 },
+      );
+    }
+
+    console.log('✅ Supabase 저장 성공');
+
     checklist.push({
-      step: 'skip-database-persistence',
+      step: 'save-to-database',
       status: 'passed',
-      detail: 'DB 저장 없이 PortOne 응답 결과만 반환',
+      detail: 'Supabase에 결제 정보 저장 완료',
     });
 
     return NextResponse.json(
