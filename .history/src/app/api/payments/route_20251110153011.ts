@@ -34,9 +34,7 @@ type ApiResponse =
 
 const PORTONE_API_BASE_URL = 'https://api.portone.io';
 const PORTONE_BILLING_KEY_PATH = (paymentId: string) =>
-  `${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(
-    paymentId
-  )}/billing-key`;
+  `${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(paymentId)}/billing-key`;
 const PORTONE_SCHEDULE_PATH = (paymentId: string) =>
   `${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(paymentId)}/schedule`;
 
@@ -57,10 +55,7 @@ function validateRequestBody(body: unknown): {
     return { error: detail, checklist };
   }
 
-  const { billingKey, orderName, amount, customer } = body as Record<
-    string,
-    unknown
-  >;
+  const { billingKey, orderName, amount, customer } = body as Record<string, unknown>;
 
   if (typeof billingKey !== 'string' || billingKey.trim() === '') {
     const detail = 'billingKey 값이 유효한 문자열이어야 합니다.';
@@ -92,12 +87,7 @@ function validateRequestBody(body: unknown): {
     return { error: detail, checklist };
   }
 
-  if (
-    typeof customer !== 'object' ||
-    customer === null ||
-    typeof (customer as Record<string, unknown>).id !== 'string' ||
-    (customer as Record<string, unknown>).id === ''
-  ) {
+  if (typeof customer !== 'object' || customer === null || typeof (customer as Record<string, unknown>).id !== 'string' || (customer as Record<string, unknown>).id === '') {
     const detail = 'customer.id 값이 유효한 문자열이어야 합니다.';
     checklist.push({
       step: 'validate-customer',
@@ -156,9 +146,7 @@ async function requestPortoneBillingKeyPayment(args: {
   if (!response.ok) {
     const errorBody = await safeParseJson(response);
     const detail = `PortOne API 호출 실패 (${response.status}): ${
-      typeof errorBody === 'object' && errorBody !== null
-        ? JSON.stringify(errorBody)
-        : response.statusText
+      typeof errorBody === 'object' && errorBody !== null ? JSON.stringify(errorBody) : response.statusText
     }`;
     checklist.push({
       step: 'request-portone-payment',
@@ -196,8 +184,8 @@ async function createSchedule(args: {
   const checklist: ChecklistItem[] = [];
 
   const requestBody = {
+    billingKey,
     payment: {
-      billingKey,
       orderName: payload.orderName,
       amount: {
         total: payload.amount,
@@ -224,9 +212,7 @@ async function createSchedule(args: {
   if (!response.ok) {
     const errorBody = await safeParseJson(response);
     const detail = `PortOne 스케줄 생성 실패 (${response.status}): ${
-      typeof errorBody === 'object' && errorBody !== null
-        ? JSON.stringify(errorBody)
-        : response.statusText
+      typeof errorBody === 'object' && errorBody !== null ? JSON.stringify(errorBody) : response.statusText
     }`;
     checklist.push({
       step: 'create-schedule',
@@ -245,9 +231,7 @@ async function createSchedule(args: {
   return { checklist };
 }
 
-export async function POST(
-  req: NextRequest
-): Promise<NextResponse<ApiResponse>> {
+export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse>> {
   const checklist: ChecklistItem[] = [];
 
   try {
@@ -266,7 +250,7 @@ export async function POST(
           error: validationError ?? '요청 본문 검증에 실패했습니다.',
           checklist,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -284,7 +268,7 @@ export async function POST(
           error: detail,
           checklist,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -302,24 +286,20 @@ export async function POST(
     });
 
     try {
-      const { checklist: portoneChecklist } =
-        await requestPortoneBillingKeyPayment({
-          paymentId,
-          payload: data,
-          secret,
-        });
+      const { checklist: portoneChecklist } = await requestPortoneBillingKeyPayment({
+        paymentId,
+        payload: data,
+        secret,
+      });
       checklist.push(...portoneChecklist);
     } catch (error) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : 'PortOne 결제 요청 중 오류가 발생했습니다.',
+          error: error instanceof Error ? error.message : 'PortOne 결제 요청 중 오류가 발생했습니다.',
           checklist,
         },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -363,9 +343,7 @@ export async function POST(
 
     console.log('💾 Supabase 저장 시도:', paymentData);
 
-    const { error: insertError } = await supabase
-      .from('payment')
-      .insert(paymentData);
+    const { error: insertError } = await supabase.from('payment').insert(paymentData);
 
     if (insertError) {
       console.error('❌ Supabase 저장 실패:', insertError);
@@ -381,7 +359,7 @@ export async function POST(
           error: detail,
           checklist,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -399,16 +377,13 @@ export async function POST(
         paymentId,
         checklist,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     checklist.push({
       step: 'handle-unexpected-error',
       status: 'failed',
-      detail:
-        error instanceof Error
-          ? error.message
-          : '예상치 못한 오류가 발생했습니다.',
+      detail: error instanceof Error ? error.message : '예상치 못한 오류가 발생했습니다.',
     });
 
     return NextResponse.json(
@@ -417,7 +392,7 @@ export async function POST(
         error: '서버 내부 오류가 발생했습니다.',
         checklist,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
