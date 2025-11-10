@@ -35,8 +35,8 @@ type ApiResponse =
 const PORTONE_API_BASE_URL = 'https://api.portone.io';
 const PORTONE_BILLING_KEY_PATH = (paymentId: string) =>
   `${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(paymentId)}/billing-key`;
-const PORTONE_SCHEDULE_PATH = (scheduleId: string) =>
-  `${PORTONE_API_BASE_URL}/schedules/${encodeURIComponent(scheduleId)}`;
+const PORTONE_SCHEDULE_PATH = (paymentId: string) =>
+  `${PORTONE_API_BASE_URL}/payments/${encodeURIComponent(paymentId)}/schedule`;
 
 function validateRequestBody(body: unknown): {
   data?: PaymentRequestBody;
@@ -174,16 +174,16 @@ async function safeParseJson(response: Response): Promise<unknown> {
 }
 
 async function createSchedule(args: {
-  scheduleId: string;
+  paymentId: string;
   billingKey: string;
   payload: PaymentRequestBody;
   secret: string;
   startDate: Date;
 }): Promise<{ checklist: ChecklistItem[] }> {
-  const { scheduleId, billingKey, payload, secret, startDate } = args;
+  const { paymentId, billingKey, payload, secret, startDate } = args;
   const checklist: ChecklistItem[] = [];
 
-  const response = await fetch(PORTONE_SCHEDULE_PATH(scheduleId), {
+  const response = await fetch(PORTONE_SCHEDULE_PATH(paymentId), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -191,21 +191,15 @@ async function createSchedule(args: {
     },
     body: JSON.stringify({
       billingKey,
-      payment: {
-        orderName: payload.orderName,
-        amount: {
-          total: payload.amount,
-        },
-        currency: 'KRW',
-        customer: {
-          id: payload.customer.id,
-        },
+      orderName: payload.orderName,
+      amount: {
+        total: payload.amount,
+      },
+      currency: 'KRW',
+      customer: {
+        id: payload.customer.id,
       },
       timeToPay: startDate.toISOString(),
-      interval: {
-        type: 'MONTHLY',
-        count: 1,
-      },
     }),
   });
 
@@ -308,11 +302,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse>>
     const oneMonthLater = new Date(now);
     oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
 
-    const scheduleId = crypto.randomUUID();
+    const nextSchedulePaymentId = crypto.randomUUID();
 
     try {
       const { checklist: scheduleChecklist } = await createSchedule({
-        scheduleId,
+        paymentId: nextSchedulePaymentId,
         billingKey: data.billingKey,
         payload: data,
         secret,
@@ -338,7 +332,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse>>
       end_at: oneMonthLater.toISOString(),
       end_grace_at: oneMonthLater.toISOString(),
       next_schedule_at: oneMonthLater.toISOString(),
-      next_schedule_id: scheduleId,
+      next_schedule_id: nextSchedulePaymentId,
     };
 
     console.log('💾 Supabase 저장 시도:', paymentData);
