@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force Node.js runtime (not Edge)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 type PaymentRequestBody = {
   billingKey: string;
   orderName: string;
