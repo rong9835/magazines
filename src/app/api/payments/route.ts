@@ -183,14 +183,9 @@ async function createSchedule(args: {
   const { paymentId, billingKey, payload, secret, startDate } = args;
   const checklist: ChecklistItem[] = [];
 
-  const response = await fetch(PORTONE_SCHEDULE_PATH(paymentId), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `PortOne ${secret}`,
-    },
-    body: JSON.stringify({
-      billingKey,
+  const requestBody = {
+    billingKey,
+    payment: {
       orderName: payload.orderName,
       amount: {
         total: payload.amount,
@@ -199,8 +194,19 @@ async function createSchedule(args: {
       customer: {
         id: payload.customer.id,
       },
-      timeToPay: startDate.toISOString(),
-    }),
+    },
+    timeToPay: startDate.toISOString(),
+  };
+
+  console.log('📅 스케줄 생성 요청:', JSON.stringify(requestBody, null, 2));
+
+  const response = await fetch(PORTONE_SCHEDULE_PATH(paymentId), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `PortOne ${secret}`,
+    },
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
