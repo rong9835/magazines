@@ -17,6 +17,11 @@ type SubscribeOptions = {
 const DEFAULT_ORDER_NAME = 'IT 매거진 월간 구독';
 const DEFAULT_AMOUNT = 9900;
 
+// 클라이언트 컴포넌트에서 환경변수를 읽기 위해 모듈 최상단에서 선언
+const PORTONE_STORE_ID = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+const PORTONE_CHANNEL_KEY = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY;
+const PORTONE_CUSTOMER_ID = process.env.NEXT_PUBLIC_PORTONE_CUSTOMER_ID;
+
 async function safeParseJson<T>(response: Response): Promise<T | null> {
   try {
     return (await response.json()) as T;
@@ -44,10 +49,9 @@ export function useMagazinePayment() {
       const resultChecklist: ChecklistItem[] = [];
 
       try {
-        const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
-        const channelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY;
-        const customerId =
-          options?.customerId ?? process.env.NEXT_PUBLIC_PORTONE_CUSTOMER_ID ?? 'magazine-demo-customer';
+        const storeId = PORTONE_STORE_ID;
+        const channelKey = PORTONE_CHANNEL_KEY;
+        const customerId = options?.customerId ?? PORTONE_CUSTOMER_ID ?? 'magazine-demo-customer';
 
         if (!storeId || !channelKey) {
           const detail = '포트원 상점 정보가 구성되지 않았습니다. 환경변수를 확인해주세요.';
