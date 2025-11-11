@@ -1,12 +1,12 @@
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 type CancelResponse = {
   success: boolean;
   error?: string;
   checklist?: Array<{
     step: string;
-    status: 'passed' | 'failed';
+    status: "passed" | "failed";
     detail: string;
   }>;
 };
@@ -21,10 +21,10 @@ export function usePaymentCancel() {
     setError(null);
 
     try {
-      const response = await fetch('/api/payments/cancel', {
-        method: 'POST',
+      const response = await fetch("/api/payments/cancel", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           transactionKey,
@@ -34,21 +34,19 @@ export function usePaymentCancel() {
       const data: CancelResponse = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || '구독 취소에 실패했습니다.');
+        throw new Error(data.error || "구독 취소에 실패했습니다.");
       }
 
       // 알림 메시지
-      alert('구독이 취소되었습니다.');
+      alert("구독이 취소되었습니다.");
 
       // 페이지 이동
-      router.push('/magazines');
+      router.push("/magazines");
 
       return { success: true, data };
     } catch (err) {
       const errorMessage =
-        err instanceof Error
-          ? err.message
-          : '구독 취소 중 오류가 발생했습니다.';
+        err instanceof Error ? err.message : "구독 취소 중 오류가 발생했습니다.";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
