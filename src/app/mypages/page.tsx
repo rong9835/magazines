@@ -21,7 +21,7 @@ const mockUserData: UserProfile = {
   bio: '최신 IT 트렌드와 개발 이야기를 공유합니다',
   subscriptionStatus: 'subscribed',
   joinDate: '2024.03',
-  transactionKey: 'f0a8d44c-2a46-429d-8c3f-cfde00ea376e',
+  transactionKey: '69ddbe9f-c43e-4507-bb09-9a92d4524b8b',
 };
 
 function GlossaryMagazinesMypage() {
