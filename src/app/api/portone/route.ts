@@ -152,18 +152,18 @@ async function fetchPortonePaymentDetail(
   return { detail, checklist };
 }
 
-function createSupabaseAdminClient(): {
+function createSupabaseClient(): {
   client?: SupabaseClient;
   checklist: ChecklistItem[];
   error?: string;
 } {
   const checklist: ChecklistItem[] = [];
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     const detail =
-      'Supabase 환경변수(NEXT_PUBLIC_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY)가 설정되지 않았습니다.';
+      'Supabase 환경변수(NEXT_PUBLIC_SUPABASE_URL 또는 NEXT_PUBLIC_SUPABASE_ANON_KEY)가 설정되지 않았습니다.';
     checklist.push({
       step: 'load-supabase-config',
       status: 'failed',
@@ -178,7 +178,7 @@ function createSupabaseAdminClient(): {
     detail: 'Supabase 환경변수 로드 완료',
   });
 
-  const client = createClient(supabaseUrl, serviceRoleKey);
+  const client = createClient(supabaseUrl, supabaseAnonKey);
 
   return { client, checklist };
 }
@@ -623,12 +623,12 @@ export async function POST(
     }
 
     const {
-      client: supabaseAdmin,
+      client: supabase,
       checklist: supabaseChecklist,
       error: supabaseError,
-    } = createSupabaseAdminClient();
+    } = createSupabaseClient();
     checklist.push(...supabaseChecklist);
-    if (!supabaseAdmin || supabaseError) {
+    if (!supabase || supabaseError) {
       return NextResponse.json(
         {
           success: false,
@@ -645,7 +645,7 @@ export async function POST(
       try {
         // 3-1-2: Query existing payment record from Supabase
         const { record, checklist: queryChecklist } = await queryPaymentRecord({
-          supabase: supabaseAdmin,
+          supabase,
           transactionKey: data.paymentId,
         });
         checklist.push(...queryChecklist);
@@ -656,7 +656,7 @@ export async function POST(
 
         // 3-1-3: Insert cancellation record
         const cancelChecklist = await insertCancellationRecord({
-          supabase: supabaseAdmin,
+          supabase,
           record,
         });
         checklist.push(...cancelChecklist);
@@ -784,7 +784,7 @@ export async function POST(
 
     try {
       const supabaseInsertChecklist = await insertPaymentRecord({
-        supabase: supabaseAdmin,
+        supabase,
         paymentId: data.paymentId,
         amount,
         startAt,
