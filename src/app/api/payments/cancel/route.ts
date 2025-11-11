@@ -424,10 +424,14 @@ async function deleteScheduledPayments(args: {
 export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse>> {
+  const cancelId = crypto.randomUUID().substring(0, 8);
+  console.log(`🔴 [CANCEL ${cancelId}] POST /api/payments/cancel 호출됨`);
+
   const checklist: ChecklistItem[] = [];
 
   try {
     const body = await req.json();
+    console.log(`🔴 [CANCEL ${cancelId}] 요청 본문:`, JSON.stringify(body, null, 2));
     const {
       data,
       checklist: validationChecklist,
@@ -562,26 +566,12 @@ export async function POST(
       );
     }
 
-    // Step 5: Supabase에 취소 레코드 추가
-    if (paymentRecord) {
-      try {
-        const cancelChecklist = await insertCancellationRecord({
-          supabase,
-          record: paymentRecord,
-        });
-        checklist.push(...cancelChecklist);
-      } catch (error) {
-        // 취소 레코드 추가 실패해도 경고만
-        checklist.push({
-          step: 'warning-insert-cancellation-failed',
-          status: 'failed',
-          detail:
-            error instanceof Error
-              ? error.message
-              : '취소 레코드 추가에 실패했습니다. (취소는 완료됨)',
-        });
-      }
-    }
+    // Step 5: 취소 레코드는 PortOne webhook(/api/portone)에서 처리됨
+    checklist.push({
+      step: 'cancellation-flow-initiated',
+      status: 'passed',
+      detail: '취소 요청 완료. 취소 레코드는 webhook에서 저장됩니다.',
+    });
 
     // Step 6: PortOne 예약 결제 조회 및 삭제
     if (paymentDetail?.billingKey && paymentRecord) {
@@ -644,6 +634,7 @@ export async function POST(
       detail: '구독 취소 처리 완료',
     });
 
+    console.log(`🔴 [CANCEL ${cancelId}] 구독 취소 완료 - 성공 응답 반환`);
     return NextResponse.json(
       {
         success: true,

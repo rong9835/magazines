@@ -393,7 +393,7 @@ async function insertCancellationRecord(args: {
   const { supabase, record } = args;
   const checklist: ChecklistItem[] = [];
 
-  const { error } = await supabase.from('payment').insert({
+  const cancelData = {
     transaction_key: record.transaction_key,
     amount: -record.amount,
     status: 'Cancel',
@@ -402,9 +402,14 @@ async function insertCancellationRecord(args: {
     end_grace_at: record.end_grace_at,
     next_schedule_at: record.next_schedule_at,
     next_schedule_id: record.next_schedule_id,
-  });
+  };
+
+  console.log('💾 [WEBHOOK] Supabase 취소 레코드 저장 시도:', cancelData);
+
+  const { error } = await supabase.from('payment').insert(cancelData);
 
   if (error) {
+    console.error('❌ [WEBHOOK] Supabase 취소 레코드 저장 실패:', error);
     const detail = `Supabase 취소 레코드 등록 실패: ${error.message}`;
     checklist.push({
       step: 'insert-cancellation-record',
@@ -414,6 +419,7 @@ async function insertCancellationRecord(args: {
     throw new Error(detail);
   }
 
+  console.log('✅ [WEBHOOK] Supabase 취소 레코드 저장 성공');
   checklist.push({
     step: 'insert-cancellation-record',
     status: 'passed',
