@@ -11,6 +11,7 @@
   "dependencies": {
     "@portone/browser-sdk": "^0.1.1",
     "@supabase/supabase-js": "^2.77.0",
+    "axios": "^1.13.2",
     "next": "14.2.32",
     "next-auth": "^4.24.12",
     "react": "^18",

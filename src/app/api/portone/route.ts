@@ -1,5 +1,6 @@
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import axios from 'axios';
 
 type SubscriptionRequestBody = {
   payment_id: string;
@@ -327,6 +328,207 @@ function buildDateStrings(): {
   return { startAt, endAt, endGraceAt, nextScheduleAt };
 }
 
+type PaymentRecord = {
+  transaction_key: string;
+  amount: number;
+  status: string;
+  start_at: string;
+  end_at: string;
+  end_grace_at: string;
+  next_schedule_at: string;
+  next_schedule_id: string;
+};
+
+async function queryPaymentRecord(args: {
+  supabase: SupabaseClient;
+  transactionKey: string;
+}): Promise<{
+  record?: PaymentRecord;
+  checklist: ChecklistItem[];
+}> {
+  const { supabase, transactionKey } = args;
+  const checklist: ChecklistItem[] = [];
+
+  const { data, error } = await supabase
+    .from('payment')
+    .select('*')
+    .eq('transaction_key', transactionKey)
+    .single();
+
+  if (error || !data) {
+    const detail = `Supabase payment 조회 실패: ${error?.message || '레코드를 찾을 수 없습니다'}`;
+    checklist.push({
+      step: 'query-payment-record',
+      status: 'failed',
+      detail,
+    });
+    throw new Error(detail);
+  }
+
+  checklist.push({
+    step: 'query-payment-record',
+    status: 'passed',
+    detail: 'Supabase payment 테이블 조회 성공',
+  });
+
+  return { record: data as PaymentRecord, checklist };
+}
+
+async function insertCancellationRecord(args: {
+  supabase: SupabaseClient;
+  record: PaymentRecord;
+}): Promise<ChecklistItem[]> {
+  const { supabase, record } = args;
+  const checklist: ChecklistItem[] = [];
+
+  const { error } = await supabase.from('payment').insert({
+    transaction_key: record.transaction_key,
+    amount: -record.amount,
+    status: 'Cancel',
+    start_at: record.start_at,
+    end_at: record.end_at,
+    end_grace_at: record.end_grace_at,
+    next_schedule_at: record.next_schedule_at,
+    next_schedule_id: record.next_schedule_id,
+  });
+
+  if (error) {
+    const detail = `Supabase 취소 레코드 등록 실패: ${error.message}`;
+    checklist.push({
+      step: 'insert-cancellation-record',
+      status: 'failed',
+      detail,
+    });
+    throw new Error(detail);
+  }
+
+  checklist.push({
+    step: 'insert-cancellation-record',
+    status: 'passed',
+    detail: 'Supabase 취소 레코드 등록 성공',
+  });
+
+  return checklist;
+}
+
+type ScheduledPayment = {
+  id: string;
+  paymentId: string;
+};
+
+async function queryScheduledPayments(args: {
+  secret: string;
+  billingKey: string;
+  fromDate: string;
+  untilDate: string;
+}): Promise<{
+  items?: ScheduledPayment[];
+  checklist: ChecklistItem[];
+}> {
+  const { secret, billingKey, fromDate, untilDate } = args;
+  const checklist: ChecklistItem[] = [];
+
+  try {
+    const response = await axios.get(
+      `${PORTONE_API_BASE_URL}/payment-schedules`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `PortOne ${secret}`,
+        },
+        data: {
+          filter: {
+            billingKey,
+            from: fromDate,
+            until: untilDate,
+          },
+        },
+      }
+    );
+
+    if (response.status !== 200) {
+      const detail = `PortOne 예약 결제 조회 실패 (${response.status})`;
+      checklist.push({
+        step: 'query-scheduled-payments',
+        status: 'failed',
+        detail,
+      });
+      throw new Error(detail);
+    }
+
+    checklist.push({
+      step: 'query-scheduled-payments',
+      status: 'passed',
+      detail: 'PortOne 예약 결제 조회 성공',
+    });
+
+    return { items: response.data?.items || [], checklist };
+  } catch (error) {
+    const detail =
+      error instanceof Error
+        ? error.message
+        : 'PortOne 예약 결제 조회 중 오류 발생';
+    checklist.push({
+      step: 'query-scheduled-payments',
+      status: 'failed',
+      detail,
+    });
+    throw new Error(detail);
+  }
+}
+
+async function deleteScheduledPayments(args: {
+  secret: string;
+  scheduleIds: string[];
+}): Promise<ChecklistItem[]> {
+  const { secret, scheduleIds } = args;
+  const checklist: ChecklistItem[] = [];
+
+  try {
+    const response = await axios.delete(
+      `${PORTONE_API_BASE_URL}/payment-schedules`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `PortOne ${secret}`,
+        },
+        data: {
+          scheduleIds,
+        },
+      }
+    );
+
+    if (response.status !== 200) {
+      const detail = `PortOne 예약 결제 삭제 실패 (${response.status})`;
+      checklist.push({
+        step: 'delete-scheduled-payments',
+        status: 'failed',
+        detail,
+      });
+      throw new Error(detail);
+    }
+
+    checklist.push({
+      step: 'delete-scheduled-payments',
+      status: 'passed',
+      detail: 'PortOne 예약 결제 삭제 성공',
+    });
+
+    return checklist;
+  } catch (error) {
+    const detail =
+      error instanceof Error
+        ? error.message
+        : 'PortOne 예약 결제 삭제 중 오류 발생';
+    checklist.push({
+      step: 'delete-scheduled-payments',
+      status: 'failed',
+      detail,
+    });
+    throw new Error(detail);
+  }
+}
+
 export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse>> {
@@ -349,22 +551,6 @@ export async function POST(
           checklist,
         },
         { status: 400 }
-      );
-    }
-
-    if (data.status === 'Cancelled') {
-      checklist.push({
-        step: 'handle-cancelled-status',
-        status: 'skipped',
-        detail:
-          'status 값이 Cancelled 이므로 구독 결제 완료 플로우를 건너뜁니다.',
-      });
-      return NextResponse.json(
-        {
-          success: true,
-          checklist,
-        },
-        { status: 200 }
       );
     }
 
@@ -454,6 +640,103 @@ export async function POST(
       );
     }
 
+    // Handle Cancelled scenario
+    if (data.status === 'Cancelled') {
+      try {
+        // 3-1-2: Query existing payment record from Supabase
+        const { record, checklist: queryChecklist } = await queryPaymentRecord({
+          supabase: supabaseAdmin,
+          transactionKey: data.paymentId,
+        });
+        checklist.push(...queryChecklist);
+
+        if (!record) {
+          throw new Error('결제 레코드를 찾을 수 없습니다.');
+        }
+
+        // 3-1-3: Insert cancellation record
+        const cancelChecklist = await insertCancellationRecord({
+          supabase: supabaseAdmin,
+          record,
+        });
+        checklist.push(...cancelChecklist);
+
+        // 3-2-1: Query scheduled payments
+        const fromDate = new Date(record.next_schedule_at);
+        fromDate.setDate(fromDate.getDate() - 1);
+        const untilDate = new Date(record.next_schedule_at);
+        untilDate.setDate(untilDate.getDate() + 1);
+
+        const { items, checklist: scheduleQueryChecklist } =
+          await queryScheduledPayments({
+            secret,
+            billingKey: paymentDetail.billingKey || '',
+            fromDate: fromDate.toISOString(),
+            untilDate: untilDate.toISOString(),
+          });
+        checklist.push(...scheduleQueryChecklist);
+
+        // 3-2-2: Extract schedule ID
+        const matchingSchedule = items?.find(
+          (item) => item.paymentId === record.next_schedule_id
+        );
+
+        if (!matchingSchedule) {
+          checklist.push({
+            step: 'find-matching-schedule',
+            status: 'failed',
+            detail: '일치하는 예약 결제를 찾을 수 없습니다.',
+          });
+          throw new Error('일치하는 예약 결제를 찾을 수 없습니다.');
+        }
+
+        checklist.push({
+          step: 'find-matching-schedule',
+          status: 'passed',
+          detail: `예약 결제 ID 발견: ${matchingSchedule.id}`,
+        });
+
+        // 3-2-3: Delete scheduled payment
+        const deleteChecklist = await deleteScheduledPayments({
+          secret,
+          scheduleIds: [matchingSchedule.id],
+        });
+        checklist.push(...deleteChecklist);
+
+        checklist.push({
+          step: 'complete-cancellation-flow',
+          status: 'passed',
+          detail: '구독 취소 처리 완료',
+        });
+
+        return NextResponse.json(
+          {
+            success: true,
+            checklist,
+          },
+          { status: 200 }
+        );
+      } catch (error) {
+        checklist.push({
+          step: 'handle-cancellation-error',
+          status: 'failed',
+          detail:
+            error instanceof Error
+              ? error.message
+              : '구독 취소 처리 중 오류가 발생했습니다.',
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: '구독 취소를 처리하지 못했습니다.',
+            checklist,
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Handle Paid scenario
     const amount = paymentDetail.amount?.total;
     if (typeof amount !== 'number' || Number.isNaN(amount) || amount <= 0) {
       const detail =

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styles from "./styles.module.css";
+import { usePaymentCancel } from "./hooks/index.payment.cancel.hook";
 
 interface UserProfile {
   profileImage: string;
@@ -10,6 +11,7 @@ interface UserProfile {
   bio: string;
   subscriptionStatus: "subscribed" | "unsubscribed";
   joinDate: string;
+  transactionKey?: string;
 }
 
 const mockUserData: UserProfile = {
@@ -17,12 +19,14 @@ const mockUserData: UserProfile = {
   nickname: "테크러버",
   bio: "최신 IT 트렌드와 개발 이야기를 공유합니다",
   subscriptionStatus: "subscribed",
-  joinDate: "2024.03"
+  joinDate: "2024.03",
+  transactionKey: "mock-transaction-key-123"
 };
 
-export function GlossaryMagazinesMypage() {
+function GlossaryMagazinesMypage() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile>(mockUserData);
+  const { cancelSubscription, isLoading } = usePaymentCancel();
 
   const handleBackToList = () => {
     router.push('/magazines');
@@ -35,12 +39,22 @@ export function GlossaryMagazinesMypage() {
     }));
   };
 
-  const handleCancelSubscription = () => {
+  const handleCancelSubscription = async () => {
     if (confirm("구독을 취소하시겠습니까?")) {
-      setUser(prev => ({
-        ...prev,
-        subscriptionStatus: "unsubscribed"
-      }));
+      if (!user.transactionKey) {
+        alert("결제 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      const result = await cancelSubscription(user.transactionKey);
+
+      if (result.success) {
+        // 성공 시 로컬 상태 업데이트 (이미 페이지 이동이 되지만, 이동 전 상태 업데이트)
+        setUser(prev => ({
+          ...prev,
+          subscriptionStatus: "unsubscribed"
+        }));
+      }
     }
   };
 
@@ -108,8 +122,9 @@ export function GlossaryMagazinesMypage() {
               <button
                 className={styles.cancelBtn}
                 onClick={handleCancelSubscription}
+                disabled={isLoading}
               >
-                구독 취소
+                {isLoading ? "처리 중..." : "구독 취소"}
               </button>
             </div>
           ) : (
