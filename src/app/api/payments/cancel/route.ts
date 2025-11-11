@@ -273,43 +273,6 @@ async function queryPaymentRecord(args: {
   return { record: data as PaymentRecord, checklist };
 }
 
-async function insertCancellationRecord(args: {
-  supabase: SupabaseClient;
-  record: PaymentRecord;
-}): Promise<ChecklistItem[]> {
-  const { supabase, record } = args;
-  const checklist: ChecklistItem[] = [];
-
-  const { error } = await supabase.from('payment').insert({
-    transaction_key: record.transaction_key,
-    amount: -record.amount,
-    status: 'Cancel',
-    start_at: record.start_at,
-    end_at: record.end_at,
-    end_grace_at: record.end_grace_at,
-    next_schedule_at: record.next_schedule_at,
-    next_schedule_id: record.next_schedule_id,
-  });
-
-  if (error) {
-    const detail = `Supabase 취소 레코드 등록 실패: ${error.message}`;
-    checklist.push({
-      step: 'insert-cancellation-record',
-      status: 'failed',
-      detail,
-    });
-    throw new Error(detail);
-  }
-
-  checklist.push({
-    step: 'insert-cancellation-record',
-    status: 'passed',
-    detail: 'Supabase 취소 레코드 등록 성공',
-  });
-
-  return checklist;
-}
-
 async function queryScheduledPayments(args: {
   secret: string;
   billingKey: string;
