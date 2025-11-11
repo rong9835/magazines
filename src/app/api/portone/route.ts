@@ -207,7 +207,7 @@ async function insertPaymentRecord(args: {
   } = args;
   const checklist: ChecklistItem[] = [];
 
-  const { error } = await supabase.from('payment').insert({
+  const paymentData = {
     transaction_key: paymentId,
     amount,
     status: 'Paid',
@@ -216,9 +216,14 @@ async function insertPaymentRecord(args: {
     end_grace_at: endGraceAt,
     next_schedule_at: nextScheduleAt,
     next_schedule_id: nextScheduleId,
-  });
+  };
+
+  console.log('💾 [WEBHOOK] Supabase payment 저장 시도:', paymentData);
+
+  const { error } = await supabase.from('payment').insert(paymentData);
 
   if (error) {
+    console.error('❌ [WEBHOOK] Supabase payment 저장 실패:', error);
     const detail = `Supabase payment 등록 실패: ${error.message}`;
     checklist.push({
       step: 'insert-payment-record',
@@ -228,6 +233,7 @@ async function insertPaymentRecord(args: {
     throw new Error(detail);
   }
 
+  console.log('✅ [WEBHOOK] Supabase payment 저장 성공');
   checklist.push({
     step: 'insert-payment-record',
     status: 'passed',
@@ -540,10 +546,14 @@ async function deleteScheduledPayments(args: {
 export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse>> {
+  const webhookId = crypto.randomUUID().substring(0, 8);
+  console.log(`🟣 [WEBHOOK ${webhookId}] POST /api/portone 호출됨 (PortOne Webhook)`);
+
   const checklist: ChecklistItem[] = [];
 
   try {
     const body = await req.json();
+    console.log(`🟣 [WEBHOOK ${webhookId}] 요청 본문:`, JSON.stringify(body, null, 2));
     const {
       data,
       checklist: validationChecklist,
@@ -718,6 +728,7 @@ export async function POST(
           detail: '구독 취소 처리 완료',
         });
 
+        console.log(`🟣 [WEBHOOK ${webhookId}] 구독 취소 완료 - 성공 응답 반환`);
         return NextResponse.json(
           {
             success: true,
@@ -856,6 +867,7 @@ export async function POST(
       detail: '구독 결제 완료 및 다음 결제 예약 처리 완료',
     });
 
+    console.log(`🟣 [WEBHOOK ${webhookId}] 구독 결제 완료 - 성공 응답 반환`);
     return NextResponse.json(
       {
         success: true,

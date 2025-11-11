@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
 
 // Force Node.js runtime (not Edge)
 export const runtime = 'nodejs';
@@ -248,10 +247,14 @@ async function createSchedule(args: {
 export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse>> {
+  const requestId = crypto.randomUUID().substring(0, 8);
+  console.log(`🟢 [SERVER ${requestId}] POST /api/payments 호출됨`);
+
   const checklist: ChecklistItem[] = [];
 
   try {
     const body = await req.json();
+    console.log(`🟢 [SERVER ${requestId}] 요청 본문:`, JSON.stringify(body, null, 2));
     const {
       data,
       checklist: validationChecklist,
@@ -349,50 +352,15 @@ export async function POST(
       });
     }
 
-    // Supabase에 결제 정보 저장
-    const paymentData = {
-      transaction_key: paymentId,
-      amount: data.amount,
-      status: 'Paid',
-      start_at: now.toISOString(),
-      end_at: oneMonthLater.toISOString(),
-      end_grace_at: oneMonthLater.toISOString(),
-      next_schedule_at: oneMonthLater.toISOString(),
-      next_schedule_id: nextSchedulePaymentId,
-    };
-
-    console.log('💾 Supabase 저장 시도:', paymentData);
-
-    const { error: insertError } = await supabase
-      .from('payment')
-      .insert(paymentData);
-
-    if (insertError) {
-      console.error('❌ Supabase 저장 실패:', insertError);
-      const detail = `Supabase 저장 실패: ${insertError.message}`;
-      checklist.push({
-        step: 'save-to-database',
-        status: 'failed',
-        detail,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: detail,
-          checklist,
-        },
-        { status: 500 }
-      );
-    }
-
-    console.log('✅ Supabase 저장 성공');
-
+    // Supabase 저장은 PortOne webhook(/api/portone)에서 처리됨
+    console.log(`ℹ️ [SERVER ${requestId}] Supabase 저장은 webhook에서 처리됩니다.`);
     checklist.push({
-      step: 'save-to-database',
+      step: 'payment-flow-complete',
       status: 'passed',
-      detail: 'Supabase에 결제 정보 저장 완료',
+      detail: '결제 요청 완료. 결제 정보는 webhook에서 저장됩니다.',
     });
 
+    console.log(`🟢 [SERVER ${requestId}] 성공 응답 반환`);
     return NextResponse.json(
       {
         success: true,

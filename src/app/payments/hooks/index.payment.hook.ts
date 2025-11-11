@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PortOne from '@portone/browser-sdk/v2';
 
@@ -35,13 +35,19 @@ export function useMagazinePayment() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const isProcessingRef = useRef(false);
 
   const subscribe = useCallback(
     async (options?: SubscribeOptions) => {
-      if (isProcessing) {
+      console.log('🔵 [CLIENT] subscribe 함수 호출됨');
+
+      // useRef를 사용해 동기적으로 중복 호출 방지
+      if (isProcessingRef.current) {
+        console.log('⚠️ [CLIENT] 이미 처리 중입니다. 중복 호출이 차단되었습니다.');
         return;
       }
 
+      isProcessingRef.current = true;
       setIsProcessing(true);
       setErrorMessage(null);
       setChecklist([]);
@@ -127,6 +133,7 @@ export function useMagazinePayment() {
           detail: '빌링키 발급 완료',
         });
 
+        console.log('🔵 [CLIENT] /api/payments API 호출 시작');
         const paymentResponse = await fetch('/api/payments', {
           method: 'POST',
           headers: {
@@ -141,6 +148,7 @@ export function useMagazinePayment() {
             },
           }),
         });
+        console.log('🔵 [CLIENT] /api/payments API 응답 받음:', paymentResponse.status);
 
         const parsed = await safeParseJson<{
           success: boolean;
@@ -183,10 +191,11 @@ export function useMagazinePayment() {
         setChecklist(resultChecklist);
         setErrorMessage(detail);
       } finally {
+        isProcessingRef.current = false;
         setIsProcessing(false);
       }
     },
-    [isProcessing, router],
+    [router],
   );
 
   return {
