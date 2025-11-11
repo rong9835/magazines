@@ -115,8 +115,6 @@ async function fetchPortonePaymentDetail(
     }
   );
 
-  console.log('------거래 내역 상세 response------', response);
-
   if (!response.ok) {
     const errorBody = await safeParseJson(response);
     const detail = `PortOne 결제 조회 실패 (${response.status}): ${
@@ -355,9 +353,7 @@ async function queryPaymentRecord(args: {
     .from('payment')
     .select('*')
     .eq('transaction_key', transactionKey)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     const detail = `Supabase payment 조회 실패: ${
@@ -486,9 +482,8 @@ async function queryScheduledPayments(args: {
 async function deleteScheduledPayments(args: {
   secret: string;
   scheduleIds: string[];
-  billingKey: string;
 }): Promise<ChecklistItem[]> {
-  const { secret, scheduleIds, billingKey } = args;
+  const { secret, scheduleIds } = args;
   const checklist: ChecklistItem[] = [];
 
   try {
@@ -501,7 +496,6 @@ async function deleteScheduledPayments(args: {
         },
         data: {
           scheduleIds,
-          billingKey,
         },
       }
     );
@@ -708,7 +702,6 @@ export async function POST(
         const deleteChecklist = await deleteScheduledPayments({
           secret,
           scheduleIds: [matchingSchedule.id],
-          billingKey: paymentDetail.billingKey || '',
         });
         checklist.push(...deleteChecklist);
 
