@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import PortOne from '@portone/browser-sdk/v2';
 
 type ChecklistItem = {
@@ -31,20 +30,19 @@ async function safeParseJson<T>(response: Response): Promise<T | null> {
 }
 
 export function useMagazinePayment() {
-  const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const isProcessingRef = useRef(false);
 
   const subscribe = useCallback(
-    async (options?: SubscribeOptions) => {
+    async (options?: SubscribeOptions): Promise<boolean> => {
       console.log('🔵 [CLIENT] subscribe 함수 호출됨');
 
       // useRef를 사용해 동기적으로 중복 호출 방지
       if (isProcessingRef.current) {
         console.log('⚠️ [CLIENT] 이미 처리 중입니다. 중복 호출이 차단되었습니다.');
-        return;
+        return false;
       }
 
       isProcessingRef.current = true;
@@ -68,7 +66,7 @@ export function useMagazinePayment() {
           });
           setChecklist(resultChecklist);
           setErrorMessage(detail);
-          return;
+          return false;
         }
 
         resultChecklist.push({
@@ -100,7 +98,7 @@ export function useMagazinePayment() {
           });
           setChecklist(resultChecklist);
           setErrorMessage(detail);
-          return;
+          return false;
         }
 
         if (issueResponse.code !== undefined) {
@@ -112,7 +110,7 @@ export function useMagazinePayment() {
           });
           setChecklist(resultChecklist);
           setErrorMessage(detail);
-          return;
+          return false;
         }
 
         if (!issueResponse.billingKey) {
@@ -124,7 +122,7 @@ export function useMagazinePayment() {
           });
           setChecklist(resultChecklist);
           setErrorMessage(detail);
-          return;
+          return false;
         }
 
         resultChecklist.push({
@@ -169,7 +167,7 @@ export function useMagazinePayment() {
           });
           setChecklist(resultChecklist);
           setErrorMessage(detail);
-          return;
+          return false;
         }
 
         resultChecklist.push({
@@ -180,7 +178,7 @@ export function useMagazinePayment() {
 
         setChecklist(resultChecklist);
         alert('구독에 성공하였습니다.');
-        router.push('/magazines');
+        return true;
       } catch (error) {
         const detail = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
         resultChecklist.push({
@@ -190,12 +188,13 @@ export function useMagazinePayment() {
         });
         setChecklist(resultChecklist);
         setErrorMessage(detail);
+        return false;
       } finally {
         isProcessingRef.current = false;
         setIsProcessing(false);
       }
     },
-    [router],
+    [],
   );
 
   return {

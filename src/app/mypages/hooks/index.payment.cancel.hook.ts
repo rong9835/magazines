@@ -1,4 +1,3 @@
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 type CancelResponse = {
@@ -12,7 +11,6 @@ type CancelResponse = {
 };
 
 export function usePaymentCancel() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,9 +41,6 @@ export function usePaymentCancel() {
       console.log('✅ [CLIENT] 구독 취소 성공');
       // 알림 메시지
       alert('구독이 취소되었습니다.');
-
-      // 페이지 이동
-      router.push('/magazines');
 
       return { success: true, data };
     } catch (err) {

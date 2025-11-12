@@ -1,17 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import styles from './styles.module.css';
 import { usePaymentCancel } from './hooks/index.payment.cancel.hook';
+import { usePaymentStatus } from './hooks/index.payment.status.hook';
+import { useMagazinePayment } from '@/app/payments/hooks/index.payment.hook';
 
 interface UserProfile {
   profileImage: string;
   nickname: string;
   bio: string;
-  subscriptionStatus: 'subscribed' | 'unsubscribed';
   joinDate: string;
-  transactionKey?: string;
 }
 
 const mockUserData: UserProfile = {
@@ -19,50 +18,50 @@ const mockUserData: UserProfile = {
     'https://images.unsplash.com/photo-1613145997970-db84a7975fbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9maWxlJTIwcG9ydHJhaXQlMjBwZXJzb258ZW58MXx8fHwxNzYyNTkxMjU5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
   nickname: '테크러버',
   bio: '최신 IT 트렌드와 개발 이야기를 공유합니다',
-  subscriptionStatus: 'subscribed',
   joinDate: '2024.03',
-  transactionKey: '0e77e6d3-42b0-43e3-93e3-fbb52c013c71',
 };
 
 function GlossaryMagazinesMypage() {
   const router = useRouter();
-  const [user, setUser] = useState<UserProfile>(mockUserData);
+  const user = mockUserData;
   const { cancelSubscription, isLoading } = usePaymentCancel();
+  const {
+    subscriptionStatus: paymentStatus,
+    transactionKey: paymentTransactionKey,
+    isLoading: isLoadingStatus,
+    refetch,
+  } = usePaymentStatus();
+  const { subscribe, isProcessing } = useMagazinePayment();
 
   const handleBackToList = () => {
     router.push('/magazines');
   };
 
-  const handleSubscriptionToggle = () => {
-    setUser((prev) => ({
-      ...prev,
-      subscriptionStatus:
-        prev.subscriptionStatus === 'subscribed'
-          ? 'unsubscribed'
-          : 'subscribed',
-    }));
+  const handleSubscribe = async () => {
+    const success = await subscribe();
+    if (success) {
+      // 결제 성공 후 최신 구독 상태를 가져와서 UI 업데이트
+      await refetch();
+    }
   };
 
   const handleCancelSubscription = async () => {
     if (confirm('구독을 취소하시겠습니까?')) {
-      if (!user.transactionKey) {
+      if (!paymentTransactionKey) {
         alert('결제 정보를 찾을 수 없습니다.');
         return;
       }
 
-      const result = await cancelSubscription(user.transactionKey);
-
+      const result = await cancelSubscription(paymentTransactionKey);
       if (result.success) {
-        // 성공 시 로컬 상태 업데이트 (이미 페이지 이동이 되지만, 이동 전 상태 업데이트)
-        setUser((prev) => ({
-          ...prev,
-          subscriptionStatus: 'unsubscribed',
-        }));
+        // 취소 성공 후 최신 구독 상태를 가져와서 UI 업데이트
+        await refetch();
+        // 페이지는 그대로 유지하고 상태만 업데이트
       }
     }
   };
 
-  const isSubscribed = user.subscriptionStatus === 'subscribed';
+  const isSubscribed = paymentStatus === 'subscribed';
 
   return (
     <div className={styles.mypageWrapper}>
@@ -110,7 +109,13 @@ function GlossaryMagazinesMypage() {
         >
           <div className={styles.subscriptionHeader}>
             <h3 className={styles.cardTitle}>구독 플랜</h3>
-            {isSubscribed && <span className={styles.badgeActive}>구독중</span>}
+            {isLoadingStatus ? (
+              <span className={styles.badgeActive}>확인중...</span>
+            ) : isSubscribed ? (
+              <span className={styles.badgeActive}>구독중</span>
+            ) : (
+              <span className={styles.badgeActive}>Free</span>
+            )}
           </div>
 
           {isSubscribed ? (
@@ -157,7 +162,7 @@ function GlossaryMagazinesMypage() {
               <button
                 className={styles.cancelBtn}
                 onClick={handleCancelSubscription}
-                disabled={isLoading}
+                disabled={isLoading || isLoadingStatus}
               >
                 {isLoading ? '처리 중...' : '구독 취소'}
               </button>
@@ -174,9 +179,10 @@ function GlossaryMagazinesMypage() {
               </div>
               <button
                 className={styles.subscribeBtn}
-                onClick={handleSubscriptionToggle}
+                onClick={handleSubscribe}
+                disabled={isLoadingStatus || isProcessing}
               >
-                지금 구독하기
+                {isProcessing ? '결제 처리 중...' : isLoadingStatus ? '확인 중...' : '지금 구독하기'}
               </button>
             </div>
           )}
