@@ -91,6 +91,7 @@ export default function MagazinesComponent() {
                     width={40}
                     height={40}
                     className={styles.avatarImage}
+                    unoptimized
                   />
                 ) : (
                   <div className={styles.avatarIcon}>
@@ -113,18 +114,12 @@ export default function MagazinesComponent() {
               >
                 {userProfile.name}
               </button>
-              <button
-                className={styles.logoutButton}
-                onClick={handleLogout}
-              >
+              <button className={styles.logoutButton} onClick={handleLogout}>
                 로그아웃
               </button>
             </div>
           ) : (
-            <button
-              className={styles.loginButton}
-              onClick={handleGoToLogin}
-            >
+            <button className={styles.loginButton} onClick={handleGoToLogin}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path
                   d="M9 1.5C9.41421 1.5 9.75 1.83579 9.75 2.25V7.5H14.25C14.6642 7.5 15 7.83579 15 8.25C15 8.66421 14.6642 9 14.25 9H9.75V14.25C9.75 14.6642 9.41421 15 9 15C8.58579 15 8.25 14.6642 8.25 14.25V9H3.75C3.33579 9 3 8.66421 3 8.25C3 7.83579 3.33579 7.5 3.75 7.5H8.25V2.25C8.25 1.83579 8.58579 1.5 9 1.5Z"
@@ -178,6 +173,7 @@ export default function MagazinesComponent() {
                   height={200}
                   className={styles.image}
                   style={{ objectFit: 'contain' }}
+                  unoptimized
                 />
               ) : (
                 <div className={styles.imagePlaceholder} />
@@ -213,4 +209,3 @@ export default function MagazinesComponent() {
     </div>
   );
 }
-

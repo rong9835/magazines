@@ -167,7 +167,7 @@ export function useMagazinePayment() {
             orderName: DEFAULT_ORDER_NAME,
             amount: DEFAULT_AMOUNT,
             customer: {
-              id: customerId,
+              id: userId,
             },
             customData: userId,
           }),

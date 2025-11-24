@@ -63,15 +63,10 @@ export function useMagazines() {
 
             // Generate thumbnail URL using Supabase Storage getPublicUrl
             // Bucket name: vibe-coding-storage
-            // Transform: width 323px, resize: contain
+            // Note: Using direct URL without transform to let Next.js Image optimize
             const { data: publicUrlData } = supabase.storage
               .from('vibe-coding-storage')
-              .getPublicUrl(filePath, {
-                transform: {
-                  width: 323,
-                  resize: 'contain' as const,
-                },
-              });
+              .getPublicUrl(filePath);
 
             thumbnail_url = publicUrlData.publicUrl;
           }
