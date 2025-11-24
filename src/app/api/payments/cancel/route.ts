@@ -29,6 +29,7 @@ type ApiResponse =
 
 type PaymentRecord = {
   transaction_key: string;
+  user_id: string;
   amount: number;
   status: string;
   start_at: string;
@@ -238,20 +239,84 @@ async function fetchPortonePaymentDetail(
   return { detail, checklist };
 }
 
+async function getAuthenticatedUser(
+  req: NextRequest
+): Promise<{
+  userId?: string;
+  checklist: ChecklistItem[];
+  error?: string;
+}> {
+  const checklist: ChecklistItem[] = [];
+  const authHeader = req.headers.get('authorization');
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const detail = 'Authorization 헤더가 없거나 형식이 올바르지 않습니다.';
+    checklist.push({
+      step: 'authenticate-user',
+      status: 'failed',
+      detail,
+    });
+    return { error: detail, checklist };
+  }
+
+  const token = authHeader.substring(7);
+  const {
+    client: supabase,
+    checklist: supabaseChecklist,
+    error: supabaseError,
+  } = createSupabaseClient();
+  checklist.push(...supabaseChecklist);
+
+  if (!supabase || supabaseError) {
+    const detail = 'Supabase 클라이언트 초기화 실패';
+    checklist.push({
+      step: 'authenticate-user',
+      status: 'failed',
+      detail,
+    });
+    return { error: detail, checklist };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+
+  if (authError || !user) {
+    const detail = `인증 실패: ${authError?.message || '사용자를 찾을 수 없습니다'}`;
+    checklist.push({
+      step: 'authenticate-user',
+      status: 'failed',
+      detail,
+    });
+    return { error: detail, checklist };
+  }
+
+  checklist.push({
+    step: 'authenticate-user',
+    status: 'passed',
+    detail: '사용자 인증 성공',
+  });
+
+  return { userId: user.id, checklist };
+}
+
 async function queryPaymentRecord(args: {
   supabase: SupabaseClient;
   transactionKey: string;
+  userId: string;
 }): Promise<{
   record?: PaymentRecord;
   checklist: ChecklistItem[];
 }> {
-  const { supabase, transactionKey } = args;
+  const { supabase, transactionKey, userId } = args;
   const checklist: ChecklistItem[] = [];
 
   const { data, error } = await supabase
     .from('payment')
     .select('*')
     .eq('transaction_key', transactionKey)
+    .eq('user_id', userId)
     .single();
 
   if (error || !data) {
@@ -413,6 +478,25 @@ export async function POST(
       );
     }
 
+    // Step 1: 인가 확인
+    const {
+      userId,
+      checklist: authChecklist,
+      error: authError,
+    } = await getAuthenticatedUser(req);
+    checklist.push(...authChecklist);
+
+    if (!userId || authError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: authError ?? '인가에 실패했습니다.',
+          checklist,
+        },
+        { status: 401 }
+      );
+    }
+
     const secret = process.env.PORTONE_API_SECRET;
     if (!secret) {
       const detail = 'PORTONE_API_SECRET 환경변수가 설정되지 않았습니다.';
@@ -437,7 +521,50 @@ export async function POST(
       detail: 'PortOne 비밀키 로드 완료',
     });
 
-    // Step 1: PortOne 결제 취소 요청
+    // Step 2: Supabase 클라이언트 생성
+    const {
+      client: supabase,
+      checklist: supabaseChecklist,
+      error: supabaseError,
+    } = createSupabaseClient();
+    checklist.push(...supabaseChecklist);
+
+    if (!supabase || supabaseError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: supabaseError ?? 'Supabase 클라이언트를 초기화하지 못했습니다.',
+          checklist,
+        },
+        { status: 500 }
+      );
+    }
+
+    // Step 3: 취소가능여부 검증 - payment 테이블 조회
+    let paymentRecord: PaymentRecord | undefined;
+    try {
+      const { record, checklist: queryChecklist } = await queryPaymentRecord({
+        supabase,
+        transactionKey: data.transactionKey,
+        userId,
+      });
+      checklist.push(...queryChecklist);
+      paymentRecord = record;
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : '결제 정보를 조회할 수 없습니다.',
+          checklist,
+        },
+        { status: 404 }
+      );
+    }
+
+    // Step 4: PortOne 결제 취소 요청
     try {
       const { checklist: portoneChecklist } = await requestPortoneCancel({
         transactionKey: data.transactionKey,
@@ -458,7 +585,7 @@ export async function POST(
       );
     }
 
-    // Step 2: PortOne 결제 상세 정보 조회 (billingKey 가져오기)
+    // Step 5: PortOne 결제 상세 정보 조회 (billingKey 가져오기)
     let paymentDetail: PortonePaymentDetail | undefined;
     try {
       const { detail, checklist: fetchChecklist } =
@@ -477,66 +604,14 @@ export async function POST(
       });
     }
 
-    // Step 3: Supabase 클라이언트 생성
-    const {
-      client: supabase,
-      checklist: supabaseChecklist,
-      error: supabaseError,
-    } = createSupabaseClient();
-    checklist.push(...supabaseChecklist);
-
-    if (!supabase || supabaseError) {
-      // Supabase 연결 실패해도 취소는 성공했으므로 경고만
-      checklist.push({
-        step: 'warning-supabase-unavailable',
-        status: 'failed',
-        detail: 'Supabase에 취소 기록을 저장하지 못했습니다. (취소는 완료됨)',
-      });
-      return NextResponse.json(
-        {
-          success: true,
-          checklist,
-        },
-        { status: 200 }
-      );
-    }
-
-    // Step 4: Supabase에서 기존 결제 레코드 조회
-    let paymentRecord: PaymentRecord | undefined;
-    try {
-      const { record, checklist: queryChecklist } = await queryPaymentRecord({
-        supabase,
-        transactionKey: data.transactionKey,
-      });
-      checklist.push(...queryChecklist);
-      paymentRecord = record;
-    } catch (error) {
-      // 레코드 조회 실패해도 경고만
-      checklist.push({
-        step: 'warning-query-record-failed',
-        status: 'failed',
-        detail:
-          error instanceof Error
-            ? error.message
-            : '결제 레코드를 찾을 수 없습니다. (취소는 완료됨)',
-      });
-      return NextResponse.json(
-        {
-          success: true,
-          checklist,
-        },
-        { status: 200 }
-      );
-    }
-
-    // Step 5: 취소 레코드는 PortOne webhook(/api/portone)에서 처리됨
+    // Step 6: 취소 레코드는 PortOne webhook(/api/portone)에서 처리됨
     checklist.push({
       step: 'cancellation-flow-initiated',
       status: 'passed',
       detail: '취소 요청 완료. 취소 레코드는 webhook에서 저장됩니다.',
     });
 
-    // Step 6: PortOne 예약 결제 조회 및 삭제
+    // Step 7: PortOne 예약 결제 조회 및 삭제
     if (paymentDetail?.billingKey && paymentRecord) {
       try {
         const fromDate = new Date(paymentRecord.next_schedule_at);

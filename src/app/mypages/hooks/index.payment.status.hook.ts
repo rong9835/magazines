@@ -57,10 +57,43 @@ export function usePaymentStatus() {
 
       console.log('🔵 [CLIENT] payment 상태 조회 시작');
 
-      // 1-1) payment 테이블의 모든 레코드 조회
+      // 1-1-1) 로그인된 user_id 가져오기
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        const detail = `Supabase 유저 정보 조회 실패: ${userError.message}`;
+        newChecklist.push({
+          step: 'fetch-user',
+          status: 'failed',
+          detail,
+        });
+        throw new Error(detail);
+      }
+
+      if (!user) {
+        const detail = '로그인된 유저가 없습니다.';
+        newChecklist.push({
+          step: 'check-user-exists',
+          status: 'failed',
+          detail,
+        });
+        throw new Error(detail);
+      }
+
+      newChecklist.push({
+        step: 'fetch-user',
+        status: 'passed',
+        detail: `유저 정보 조회 성공 (ID: ${user.id})`,
+      });
+
+      // 1-1) payment 테이블의 목록 조회 (내 결제 정보만 필터링: user_id === 로그인된 user_id)
       const { data: allPayments, error: fetchError } = await supabase
         .from('payment')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -76,7 +109,7 @@ export function usePaymentStatus() {
       newChecklist.push({
         step: 'fetch-all-payments',
         status: 'passed',
-        detail: `payment 테이블 조회 성공 (총 ${allPayments?.length || 0}건)`,
+        detail: `payment 테이블 조회 성공 (user_id: ${user.id}, 총 ${allPayments?.length || 0}건)`,
       });
 
       if (!allPayments || allPayments.length === 0) {

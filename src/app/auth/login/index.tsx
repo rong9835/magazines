@@ -1,11 +1,18 @@
 'use client';
 
 import styles from './styles.module.css';
+import { useGoogleLogin } from '@/app/auth/login/hooks/index.login.google.hook';
 
 export default function AuthLogin() {
-  const handleGoogleLogin = () => {
-    // Google 로그인 로직 구현 필요
-    console.log('Google login clicked');
+  const { loginWithGoogle } = useGoogleLogin();
+
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      console.error('구글 로그인 처리 중 오류 발생:', error);
+      // 필요시 사용자에게 오류 메시지 표시
+    }
   };
 
   const handleBrowseFree = () => {
@@ -112,3 +119,4 @@ export default function AuthLogin() {
     </div>
   );
 }
+

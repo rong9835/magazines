@@ -36,6 +36,7 @@ type PortonePaymentResponse = {
   customer?: {
     id?: string;
   };
+  customData?: unknown;
 };
 
 const PORTONE_API_BASE_URL = 'https://api.portone.io';
@@ -194,6 +195,7 @@ async function insertPaymentRecord(args: {
   endGraceAt: string;
   nextScheduleAt: string;
   nextScheduleId: string;
+  userId?: string;
 }): Promise<ChecklistItem[]> {
   const {
     supabase,
@@ -204,6 +206,7 @@ async function insertPaymentRecord(args: {
     endGraceAt,
     nextScheduleAt,
     nextScheduleId,
+    userId,
   } = args;
   const checklist: ChecklistItem[] = [];
 
@@ -216,6 +219,7 @@ async function insertPaymentRecord(args: {
     end_grace_at: endGraceAt,
     next_schedule_at: nextScheduleAt,
     next_schedule_id: nextScheduleId,
+    ...(userId && { user_id: userId }),
   };
 
   console.log('💾 [WEBHOOK] Supabase payment 저장 시도:', paymentData);
@@ -272,6 +276,7 @@ async function scheduleNextSubscription(args: {
           amount: {
             total: paymentDetail.amount?.total,
           },
+          ...(paymentDetail.customData && { customData: paymentDetail.customData }),
           currency: 'KRW',
         },
         timeToPay: nextScheduleAt,
@@ -345,6 +350,7 @@ type PaymentRecord = {
   end_grace_at: string;
   next_schedule_at: string;
   next_schedule_id: string;
+  user_id?: string;
 };
 
 async function queryPaymentRecord(args: {
@@ -402,6 +408,7 @@ async function insertCancellationRecord(args: {
     end_grace_at: record.end_grace_at,
     next_schedule_at: record.next_schedule_at,
     next_schedule_id: record.next_schedule_id,
+    ...(record.user_id && { user_id: record.user_id }),
   };
 
   console.log('💾 [WEBHOOK] Supabase 취소 레코드 저장 시도:', cancelData);
@@ -809,6 +816,15 @@ export async function POST(
     const { startAt, endAt, endGraceAt, nextScheduleAt } = buildDateStrings();
     const nextScheduleId = crypto.randomUUID();
 
+    // Extract user_id from customData
+    let userId: string | undefined;
+    if (paymentDetail.customData && typeof paymentDetail.customData === 'object') {
+      const customData = paymentDetail.customData as Record<string, unknown>;
+      if (typeof customData.user_id === 'string') {
+        userId = customData.user_id;
+      }
+    }
+
     try {
       const supabaseInsertChecklist = await insertPaymentRecord({
         supabase,
@@ -819,6 +835,7 @@ export async function POST(
         endGraceAt,
         nextScheduleAt,
         nextScheduleId,
+        userId,
       });
       checklist.push(...supabaseInsertChecklist);
     } catch (error) {

@@ -1,6 +1,6 @@
 'use client';
 
-import MagazineDetailComponent from '@/components/magazines-detail';
+import MagazineDetailComponent from './index';
 import { useMagazineDetail } from './hooks/index.func.binding';
 
 export default function MagazineDetailPage({

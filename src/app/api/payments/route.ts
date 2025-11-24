@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 
 // Force Node.js runtime (not Edge)
 export const runtime = 'nodejs';
@@ -11,6 +12,7 @@ type PaymentRequestBody = {
   customer: {
     id: string;
   };
+  customData?: string;
 };
 
 type ChecklistItem = {
@@ -56,7 +58,7 @@ function validateRequestBody(body: unknown): {
     return { error: detail, checklist };
   }
 
-  const { billingKey, orderName, amount, customer } = body as Record<
+  const { billingKey, orderName, amount, customer, customData } = body as Record<
     string,
     unknown
   >;
@@ -120,6 +122,7 @@ function validateRequestBody(body: unknown): {
       customer: {
         id: (customer as { id: string }).id.trim(),
       },
+      customData: typeof customData === 'string' ? customData : undefined,
     },
     checklist,
   };
@@ -129,8 +132,9 @@ async function requestPortoneBillingKeyPayment(args: {
   paymentId: string;
   payload: PaymentRequestBody;
   secret: string;
+  userId: string;
 }): Promise<{ checklist: ChecklistItem[] }> {
-  const { paymentId, payload, secret } = args;
+  const { paymentId, payload, secret, userId } = args;
   const checklist: ChecklistItem[] = [];
 
   const response = await fetch(PORTONE_BILLING_KEY_PATH(paymentId), {
@@ -148,6 +152,7 @@ async function requestPortoneBillingKeyPayment(args: {
       customer: {
         id: payload.customer.id,
       },
+      customData: payload.customData || userId,
       currency: 'KRW',
     }),
   });
@@ -182,6 +187,99 @@ async function safeParseJson(response: Response): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+function createSupabaseClient(): {
+  client?: SupabaseClient;
+  checklist: ChecklistItem[];
+  error?: string;
+} {
+  const checklist: ChecklistItem[] = [];
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    const detail =
+      'Supabase 환경변수(NEXT_PUBLIC_SUPABASE_URL 또는 NEXT_PUBLIC_SUPABASE_ANON_KEY)가 설정되지 않았습니다.';
+    checklist.push({
+      step: 'load-supabase-config',
+      status: 'failed',
+      detail,
+    });
+    return { error: detail, checklist };
+  }
+
+  checklist.push({
+    step: 'load-supabase-config',
+    status: 'passed',
+    detail: 'Supabase 환경변수 로드 완료',
+  });
+
+  const client = createClient(supabaseUrl, supabaseAnonKey);
+
+  return { client, checklist };
+}
+
+async function getAuthenticatedUser(
+  req: NextRequest
+): Promise<{
+  userId?: string;
+  checklist: ChecklistItem[];
+  error?: string;
+}> {
+  const checklist: ChecklistItem[] = [];
+  const authHeader = req.headers.get('authorization');
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const detail = 'Authorization 헤더가 없거나 형식이 올바르지 않습니다.';
+    checklist.push({
+      step: 'authenticate-user',
+      status: 'failed',
+      detail,
+    });
+    return { error: detail, checklist };
+  }
+
+  const token = authHeader.substring(7);
+  const {
+    client: supabase,
+    checklist: supabaseChecklist,
+    error: supabaseError,
+  } = createSupabaseClient();
+  checklist.push(...supabaseChecklist);
+
+  if (!supabase || supabaseError) {
+    const detail = 'Supabase 클라이언트 초기화 실패';
+    checklist.push({
+      step: 'authenticate-user',
+      status: 'failed',
+      detail,
+    });
+    return { error: detail, checklist };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+
+  if (authError || !user) {
+    const detail = `인증 실패: ${authError?.message || '사용자를 찾을 수 없습니다'}`;
+    checklist.push({
+      step: 'authenticate-user',
+      status: 'failed',
+      detail,
+    });
+    return { error: detail, checklist };
+  }
+
+  checklist.push({
+    step: 'authenticate-user',
+    status: 'passed',
+    detail: '사용자 인증 성공',
+  });
+
+  return { userId: user.id, checklist };
 }
 
 async function createSchedule(args: {
@@ -273,6 +371,49 @@ export async function POST(
       );
     }
 
+    // Step 1: 인가 확인
+    const {
+      userId,
+      checklist: authChecklist,
+      error: authError,
+    } = await getAuthenticatedUser(req);
+    checklist.push(...authChecklist);
+
+    if (!userId || authError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: authError ?? '인가에 실패했습니다.',
+          checklist,
+        },
+        { status: 401 }
+      );
+    }
+
+    // Step 2: 결제가능여부 검증
+    if (userId !== data.customer.id) {
+      const detail = '인가된 user_id와 customer.id가 일치하지 않습니다.';
+      checklist.push({
+        step: 'validate-payment-authorization',
+        status: 'failed',
+        detail,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: detail,
+          checklist,
+        },
+        { status: 403 }
+      );
+    }
+
+    checklist.push({
+      step: 'validate-payment-authorization',
+      status: 'passed',
+      detail: '결제 가능 여부 검증 완료',
+    });
+
     const secret = process.env.PORTONE_API_SECRET;
     if (!secret) {
       const detail = 'PORTONE_API_SECRET 환경변수가 설정되지 않았습니다.';
@@ -310,6 +451,7 @@ export async function POST(
           paymentId,
           payload: data,
           secret,
+          userId,
         });
       checklist.push(...portoneChecklist);
     } catch (error) {

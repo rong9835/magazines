@@ -1,4 +1,4 @@
-import MagazinesComponent from '@/components/magazines';
+import MagazinesComponent from './index';
 
 export default function MagazinesPage() {
   return <MagazinesComponent />;

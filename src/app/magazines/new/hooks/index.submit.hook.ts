@@ -24,6 +24,7 @@ interface MagazineInsertData {
   description: string;
   content: string;
   tags: string[] | null;
+  user_id: string;
 }
 
 // 응답 타입
@@ -103,7 +104,19 @@ async function uploadImage(file: File): Promise<string | null> {
  */
 export async function submitMagazine(formData: MagazineFormData): Promise<SubmitResult> {
   try {
-    // 1. 필수 필드 검증
+    // 1. 로그인된 사용자 확인
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session?.user) {
+      return {
+        success: false,
+        error: '로그인이 필요합니다.'
+      };
+    }
+
+    const userId = session.user.id;
+
+    // 2. 필수 필드 검증
     if (!formData.category) {
       return {
         success: false,
@@ -118,7 +131,7 @@ export async function submitMagazine(formData: MagazineFormData): Promise<Submit
       };
     }
 
-    // 2. 이미지 업로드
+    // 3. 이미지 업로드
     let imageUrl = '';
     if (formData.image) {
       const uploadedUrl = await uploadImage(formData.image);
@@ -131,27 +144,28 @@ export async function submitMagazine(formData: MagazineFormData): Promise<Submit
       imageUrl = uploadedUrl;
     }
 
-    // 3. 태그 파싱
+    // 4. 태그 파싱
     const tags = parseTags(formData.tags);
 
-    // 4. Supabase에 저장할 데이터 준비
+    // 5. Supabase에 저장할 데이터 준비
     const insertData: MagazineInsertData = {
       image_url: imageUrl,
       category: formData.category,
       title: formData.title.trim(),
       description: formData.description.trim(),
       content: formData.content.trim(),
-      tags: tags
+      tags: tags,
+      user_id: userId
     };
 
-    // 5. Supabase INSERT 실행
+    // 6. Supabase INSERT 실행
     const { data, error } = await supabase
       .from('magazine')
       .insert([insertData])
       .select()
       .single();
 
-    // 6. 에러 처리
+    // 7. 에러 처리
     if (error) {
       console.error('Supabase insert error:', error);
       return {
@@ -160,7 +174,7 @@ export async function submitMagazine(formData: MagazineFormData): Promise<Submit
       };
     }
 
-    // 7. 성공 응답
+    // 8. 성공 응답
     if (data && data.id) {
       return {
         success: true,

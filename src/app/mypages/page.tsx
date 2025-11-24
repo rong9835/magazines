@@ -5,25 +5,11 @@ import styles from './styles.module.css';
 import { usePaymentCancel } from './hooks/index.payment.cancel.hook';
 import { usePaymentStatus } from './hooks/index.payment.status.hook';
 import { useMagazinePayment } from '@/app/payments/hooks/index.payment.hook';
-
-interface UserProfile {
-  profileImage: string;
-  nickname: string;
-  bio: string;
-  joinDate: string;
-}
-
-const mockUserData: UserProfile = {
-  profileImage:
-    'https://images.unsplash.com/photo-1613145997970-db84a7975fbb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9maWxlJTIwcG9ydHJhaXQlMjBwZXJzb258ZW58MXx8fHwxNzYyNTkxMjU5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
-  nickname: '테크러버',
-  bio: '최신 IT 트렌드와 개발 이야기를 공유합니다',
-  joinDate: '2024.03',
-};
+import { useProfile } from './hooks/index.profile.hook';
 
 function GlossaryMagazinesMypage() {
   const router = useRouter();
-  const user = mockUserData;
+  const { profile: user, isLoading: isLoadingProfile } = useProfile();
   const { cancelSubscription, isLoading } = usePaymentCancel();
   const {
     subscriptionStatus: paymentStatus,
@@ -91,14 +77,40 @@ function GlossaryMagazinesMypage() {
       <div className={styles.grid}>
         {/* 프로필 카드 */}
         <div className={styles.profileCard}>
-          <img
-            src={user.profileImage}
-            alt={user.nickname}
-            className={styles.avatar}
-          />
-          <h2 className={styles.name}>{user.nickname}</h2>
-          <p className={styles.bioText}>{user.bio}</p>
-          <div className={styles.joinDate}>가입일 {user.joinDate}</div>
+          {isLoadingProfile ? (
+            <div className={styles.avatar}>로딩중...</div>
+          ) : user?.profileImage ? (
+            <img
+              src={user.profileImage}
+              alt={user.nickname}
+              className={styles.avatar}
+            />
+          ) : (
+            <div className={styles.avatar}>
+              <svg
+                width="80"
+                height="80"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+          )}
+          <h2 className={styles.name}>
+            {isLoadingProfile ? '로딩중...' : user?.nickname || '사용자'}
+          </h2>
+          <p className={styles.bioText}>
+            {isLoadingProfile ? '로딩중...' : user?.email || ''}
+          </p>
+          <div className={styles.joinDate}>
+            가입일 {isLoadingProfile ? '로딩중...' : user?.joinDate || ''}
+          </div>
         </div>
 
         {/* 구독 플랜 카드 */}

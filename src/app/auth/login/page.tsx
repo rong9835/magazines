@@ -1,4 +1,4 @@
-import AuthLogin from '@/components/auth-login';
+import AuthLogin from './index';
 
 export default function LoginPage() {
   return <AuthLogin />;

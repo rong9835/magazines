@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import PortOne from '@portone/browser-sdk/v2';
+import { supabase } from '@/lib/supabase';
 
 type ChecklistItem = {
   step: string;
@@ -131,11 +132,35 @@ export function useMagazinePayment() {
           detail: '빌링키 발급 완료',
         });
 
+        // 인증 토큰 가져오기
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session?.access_token) {
+          const detail = '인증 토큰을 가져올 수 없습니다. 로그인이 필요합니다.';
+          resultChecklist.push({
+            step: 'get-auth-token',
+            status: 'failed',
+            detail,
+          });
+          setChecklist(resultChecklist);
+          setErrorMessage(detail);
+          return false;
+        }
+
+        const userId = session.user.id;
+
+        resultChecklist.push({
+          step: 'get-auth-token',
+          status: 'passed',
+          detail: '인증 토큰 로드 완료',
+        });
+
         console.log('🔵 [CLIENT] /api/payments API 호출 시작');
         const paymentResponse = await fetch('/api/payments', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
             billingKey: issueResponse.billingKey,
@@ -144,6 +169,7 @@ export function useMagazinePayment() {
             customer: {
               id: customerId,
             },
+            customData: userId,
           }),
         });
         console.log('🔵 [CLIENT] /api/payments API 응답 받음:', paymentResponse.status);

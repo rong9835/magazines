@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useMagazines } from '@/app/magazines/index.binding.hook';
+import { useLoginLogoutStatus } from '@/app/magazines/index.login.logout.status.hook';
 import styles from './styles.module.css';
 
 // Category color mapping
@@ -20,6 +21,14 @@ const categoryColors: Record<string, string> = {
 export default function MagazinesComponent() {
   const router = useRouter();
   const { magazines, loading, error } = useMagazines();
+  const {
+    userProfile,
+    isLoading: isAuthLoading,
+    isLoggedIn,
+    handleLogout,
+    handleGoToMyPage,
+    handleGoToLogin,
+  } = useLoginLogoutStatus();
 
   if (loading) {
     return (
@@ -66,18 +75,65 @@ export default function MagazinesComponent() {
           </p>
         </div>
         <div className={styles.headerButtons}>
-          <button
-            className={styles.loginButton}
-            onClick={() => router.push('/auth/login')}
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path
-                d="M9 1.5C9.41421 1.5 9.75 1.83579 9.75 2.25V7.5H14.25C14.6642 7.5 15 7.83579 15 8.25C15 8.66421 14.6642 9 14.25 9H9.75V14.25C9.75 14.6642 9.41421 15 9 15C8.58579 15 8.25 14.6642 8.25 14.25V9H3.75C3.33579 9 3 8.66421 3 8.25C3 7.83579 3.33579 7.5 3.75 7.5H8.25V2.25C8.25 1.83579 8.58579 1.5 9 1.5Z"
-                fill="#6b7280"
-              />
-            </svg>
-            로그인
-          </button>
+          {isAuthLoading ? (
+            <div className={styles.loadingText}>로딩 중...</div>
+          ) : isLoggedIn && userProfile ? (
+            <div className={styles.userProfileSection}>
+              <div
+                className={styles.profileAvatar}
+                onClick={handleGoToMyPage}
+                style={{ cursor: 'pointer' }}
+              >
+                {userProfile.avatar_url ? (
+                  <Image
+                    src={userProfile.avatar_url}
+                    alt={userProfile.name || '프로필'}
+                    width={40}
+                    height={40}
+                    className={styles.avatarImage}
+                  />
+                ) : (
+                  <div className={styles.avatarIcon}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <path
+                        d="M10 10C12.7614 10 15 7.76142 15 5C15 2.23858 12.7614 0 10 0C7.23858 0 5 2.23858 5 5C5 7.76142 7.23858 10 10 10Z"
+                        fill="#6b7280"
+                      />
+                      <path
+                        d="M10 12C5.58172 12 2 13.7909 2 16V20H18V16C18 13.7909 14.4183 12 10 12Z"
+                        fill="#6b7280"
+                      />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <button
+                className={styles.userNameButton}
+                onClick={handleGoToMyPage}
+              >
+                {userProfile.name}
+              </button>
+              <button
+                className={styles.logoutButton}
+                onClick={handleLogout}
+              >
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <button
+              className={styles.loginButton}
+              onClick={handleGoToLogin}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path
+                  d="M9 1.5C9.41421 1.5 9.75 1.83579 9.75 2.25V7.5H14.25C14.6642 7.5 15 7.83579 15 8.25C15 8.66421 14.6642 9 14.25 9H9.75V14.25C9.75 14.6642 9.41421 15 9 15C8.58579 15 8.25 14.6642 8.25 14.25V9H3.75C3.33579 9 3 8.66421 3 8.25C3 7.83579 3.33579 7.5 3.75 7.5H8.25V2.25C8.25 1.83579 8.58579 1.5 9 1.5Z"
+                  fill="#6b7280"
+                />
+              </svg>
+              로그인
+            </button>
+          )}
           <button
             className={styles.writeButton}
             onClick={() => router.push('/magazines/new')}
@@ -157,3 +213,4 @@ export default function MagazinesComponent() {
     </div>
   );
 }
+

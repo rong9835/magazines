@@ -1,4 +1,4 @@
-import Payments from '@/components/payments';
+import Payments from './index';
 
 export default function PaymentsPage() {
   return <Payments />;

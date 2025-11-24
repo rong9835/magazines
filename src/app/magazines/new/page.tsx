@@ -1,4 +1,4 @@
-import MagazinesNew from '@/components/magazines-new';
+import MagazinesNew from './index';
 
 export default function NewMagazinePage() {
   return <MagazinesNew />;
