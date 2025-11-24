@@ -820,10 +820,16 @@ export async function POST(
 
     // Extract user_id from customData
     let userId: string | undefined;
-    if (paymentDetail.customData && typeof paymentDetail.customData === 'object') {
-      const customData = paymentDetail.customData as Record<string, unknown>;
-      if (typeof customData.user_id === 'string') {
-        userId = customData.user_id;
+    if (paymentDetail.customData) {
+      if (typeof paymentDetail.customData === 'string') {
+        // customData가 문자열인 경우 (직접 user_id로 전달된 경우)
+        userId = paymentDetail.customData;
+      } else if (typeof paymentDetail.customData === 'object') {
+        // customData가 객체인 경우
+        const customData = paymentDetail.customData as Record<string, unknown>;
+        if (typeof customData.user_id === 'string') {
+          userId = customData.user_id;
+        }
       }
     }
 
