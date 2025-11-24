@@ -276,7 +276,9 @@ async function scheduleNextSubscription(args: {
           amount: {
             total: paymentDetail.amount?.total,
           },
-          ...(paymentDetail.customData && { customData: paymentDetail.customData }),
+          ...(paymentDetail.customData && typeof paymentDetail.customData === 'object' && paymentDetail.customData !== null
+            ? { customData: paymentDetail.customData }
+            : {}),
           currency: 'KRW',
         },
         timeToPay: nextScheduleAt,

@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginSuccessPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -23,7 +22,6 @@ export default function LoginSuccessPage() {
 
         // 세션이 이미 존재하는 경우
         if (session) {
-          setIsLoading(false);
           router.push('/magazines');
           return;
         }
@@ -32,7 +30,6 @@ export default function LoginSuccessPage() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           (event, session) => {
             if (event === 'SIGNED_IN' && session) {
-              setIsLoading(false);
               router.push('/magazines');
             }
           }
@@ -40,7 +37,6 @@ export default function LoginSuccessPage() {
 
         // 타임아웃 설정 (30초 후에도 세션이 없으면 메인 페이지로 이동)
         const timeout = setTimeout(() => {
-          setIsLoading(false);
           router.push('/magazines');
         }, 30000);
 
@@ -51,7 +47,6 @@ export default function LoginSuccessPage() {
         };
       } catch (error) {
         console.error('세션 확인 중 오류 발생:', error);
-        setIsLoading(false);
         router.push('/magazines');
       }
     };
