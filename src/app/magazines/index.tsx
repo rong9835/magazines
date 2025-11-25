@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useMagazines } from '@/app/magazines/index.binding.hook';
 import { useLoginLogoutStatus } from '@/app/magazines/index.login.logout.status.hook';
+import { useGuardAuth } from '@/app/magazines/index.guard.auth.hook';
 import { usePaymentStatus } from '@/app/mypages/hooks/index.payment.status.hook';
 import styles from './styles.module.css';
 
@@ -32,6 +33,7 @@ export default function MagazinesComponent() {
   } = useLoginLogoutStatus();
   const { subscriptionStatus, isLoading: isLoadingSubscription } =
     usePaymentStatus();
+  const { guardAuth } = useGuardAuth();
 
   if (loading) {
     return (
@@ -163,7 +165,11 @@ export default function MagazinesComponent() {
           ) : (
             <button
               className={styles.subscribeButton}
-              onClick={() => router.push('/payments')}
+              onClick={() => {
+                guardAuth(() => {
+                  router.push('/payments');
+                });
+              }}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
@@ -17,48 +17,10 @@ export const useLoginLogoutStatus = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // 로그인 상태 조회
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchUserProfile(session.user);
-        }
-      } catch (error) {
-        console.error('세션 확인 오류:', error);
-        setUser(null);
-        setUserProfile(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkSession();
-
-    // 인증 상태 변경 감지
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          setUser(session.user);
-          await fetchUserProfile(session.user);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setUserProfile(null);
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // 사용자 프로필 정보 가져오기
-  const fetchUserProfile = async (user: User) => {
+  const fetchUserProfile = useCallback(async (user: User) => {
     try {
       // user_metadata에서 프로필 정보 가져오기
       const metadata = user.user_metadata;
@@ -78,11 +40,67 @@ export const useLoginLogoutStatus = () => {
         name: user.email?.split('@')[0] || '사용자',
       });
     }
-  };
+  }, []);
+
+  // 로그인 상태 조회
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('세션 확인 오류:', error);
+          setUser(null);
+          setUserProfile(null);
+          return;
+        }
+
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchUserProfile(session.user);
+        } else {
+          setUserProfile(null);
+        }
+      } catch (error) {
+        console.error('세션 확인 오류:', error);
+        setUser(null);
+        setUserProfile(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+          await fetchUserProfile(session.user);
+          setIsLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setUserProfile(null);
+          setIsLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // 토큰 갱신 시 사용자 정보 업데이트
+          setUser(session.user);
+          await fetchUserProfile(session.user);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchUserProfile]);
 
   // 로그아웃
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
+      setIsLoggingOut(true);
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('로그아웃 오류:', error);
@@ -92,28 +110,31 @@ export const useLoginLogoutStatus = () => {
       router.push('/auth/login');
     } catch (error) {
       console.error('로그아웃 실패:', error);
+      setIsLoggingOut(false);
       throw error;
     }
-  };
+  }, [router]);
 
   // 마이페이지로 이동
-  const handleGoToMyPage = () => {
+  const handleGoToMyPage = useCallback(() => {
     router.push('/mypages');
-  };
+  }, [router]);
 
   // 로그인 페이지로 이동
-  const handleGoToLogin = () => {
+  const handleGoToLogin = useCallback(() => {
     router.push('/auth/login');
-  };
+  }, [router]);
 
   return {
     user,
     userProfile,
     isLoading,
+    isLoggingOut,
     isLoggedIn: !!user,
     handleLogout,
     handleGoToMyPage,
     handleGoToLogin,
   };
 };
+
 
